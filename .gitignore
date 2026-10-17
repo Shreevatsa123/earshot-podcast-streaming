@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# CDK
+cdk.out/
+cdk.context.json
+
+# Node / web
+node_modules/
+web/dist/
+
+# Secrets & local config
+.env
+.env.*
+*.pem
+
+# Simulator / test outputs
+*.run-report.json
+tests/**/output/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
