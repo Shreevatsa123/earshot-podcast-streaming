@@ -17,3 +17,30 @@ Earshot is a podcast streaming web app built on AWS serverless services. Users l
 1. Fill in your row in `TRACKER.md` → Team.
 2. Read `CONTEXT.md`.
 3. Pick an unblocked task in `TRACKER.md` and tell your AI agent: `I am M<#>. Work on task <ID> from TRACKER.md.`
+
+## Developer setup
+
+**Needs:** Python 3.12, Node 20+, AWS CLI v2 (`aws configure`, region `us-east-1`), the CDK CLI (`npm install -g aws-cdk`), and `make`. On Windows, use WSL.
+
+```bash
+python3.12 -m venv .venv && source .venv/bin/activate
+make install                    # Python dependencies
+make test                       # unit tests (includes a CDK synth check)
+make synth STAGE=<you>          # build the templates; changes nothing in AWS
+```
+
+**Deploying to your own AWS account** (stage = your first name, lowercase). Set Budgets alerts first.
+
+```bash
+make bootstrap     STAGE=<you>  # once per account
+make deploy-base   STAGE=<you>  # persistent stack, about $0 while idle
+make pipeline-up   STAGE=<you>  # Kinesis, Firehose, EC2: billed by the hour
+make pipeline-down STAGE=<you>  # ALWAYS run this when you're done
+```
+
+Add `ALERT_EMAIL=you@example.com` to `deploy-base` to get alert emails (confirm the link AWS sends you). Run `make help` for every command.
+
+**Where your code goes:**
+- Your construct in `infra/earshot_infra/constructs/`. Its docstring lists what it must create and the attributes other constructs read.
+- Your Lambda code in `services/<yours>/`. Shared helpers live in `services/shared/`.
+- Don't edit `infra/earshot_infra/stacks/`. If you need something wired differently, ask M6.

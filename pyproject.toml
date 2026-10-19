@@ -1,0 +1,18 @@
+# Tool settings only; this repo isn't an installable package.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Lambda code imports "shared.*"; infra code imports "earshot_infra.*".
+pythonpath = ["services", "infra"]
+addopts = "-q --import-mode=importlib"
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["F", "E9", "B", "I", "UP"]
+ignore = ["UP017"]  # datetime.timezone.utc is fine
+
+[tool.ruff.lint.isort]
+known-first-party = ["shared", "earshot_infra", "api", "ingest", "processor", "recs_writer"]

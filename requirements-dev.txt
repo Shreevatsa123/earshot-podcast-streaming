@@ -1,0 +1,5 @@
+# Everything needed locally: CDK, tests, and boto3 (Lambda already includes boto3 at runtime).
+-r infra/requirements.txt
+boto3>=1.34
+pytest>=8.0
+moto[dynamodb,s3,ssm]>=5.0

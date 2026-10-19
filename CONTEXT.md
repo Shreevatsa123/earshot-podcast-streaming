@@ -99,7 +99,7 @@
 | **M3** | Ingest & Simulator | `services/ingest/`, `simulator/`, `contracts/samples/events.jsonl`, `infra/earshot_infra/constructs/ingest.py` (base), `infra/earshot_infra/constructs/stream.py` (pipeline), `infra/earshot_infra/constructs/simulator.py` (pipeline) |
 | **M4** | Real-time Processing | `services/processor/`, `infra/earshot_infra/constructs/processing.py` (processor function + DLQ in base, event source mapping in pipeline) |
 | **M5** | Data Lake & Recommendations | `athena/`, `services/recs_writer/`, `infra/earshot_infra/constructs/lake.py`, `infra/earshot_infra/constructs/firehose.py`, `infra/earshot_infra/constructs/recs.py` |
-| **M6** | Platform, Monitoring & Testing (integration lead) | `infra/app.py`, `infra/earshot_infra/stacks/`, `infra/earshot_infra/constructs/core.py`, `infra/earshot_infra/constructs/monitoring.py`, `scripts/` (except `catalog/`), `tests/load/`, `tests/acceptance/`, `Makefile`, `.github/` |
+| **M6** | Platform, Monitoring & Testing (integration lead) | `infra/app.py`, `infra/cdk.json`, `infra/requirements.txt`, `infra/earshot_infra/config.py`, `infra/earshot_infra/common.py`, `infra/earshot_infra/stacks/`, `infra/earshot_infra/constructs/core.py`, `infra/earshot_infra/constructs/monitoring.py`, `scripts/` (except `catalog/`), `tests/load/`, `tests/acceptance/`, `Makefile`, `pyproject.toml`, `requirements-dev.txt`, `.github/` |
 | **All** | Shared | `contracts/` (change process §12), `services/shared/`, `CONTEXT.md`, `docs/` |
 
 ```
@@ -109,23 +109,25 @@ earshot/
 ├── .kiro/steering/earshot.md   ← Kiro entry point → includes CONTEXT.md + TRACKER.md
 ├── CONTEXT.md                  ← this file (living)
 ├── TRACKER.md                  ← tasks, status, blockers (living)
-├── Makefile                    ← deploy/teardown/seed commands (M6)
+├── Makefile                    ← deploy/teardown/seed commands (M6); `make help`
+├── pyproject.toml              ← pytest + ruff settings (M6)
+├── requirements-dev.txt        ← local Python deps: CDK, pytest, boto3, moto (M6)
 ├── contracts/
-│   ├── event.schema.json       ← §6
-│   ├── api.md                  ← §7 (copy)
-│   └── samples/                ← fixtures everyone codes against
+│   └── samples/                ← fixtures everyone codes against (list: samples/README.md)
 │       ├── catalog.json        ← canonical catalog snapshot (M2)
 │       ├── events.jsonl        ← 1,000 sample events (M3)
-│       ├── home.json  shows.json  show_detail.json  trending.json  progress.json
+│       ├── home.json  shows.json  show_detail.json  trending.json  progress.json  (M2)
 ├── infra/
 │   ├── app.py                  ← reads -c stage=..., builds 2 stacks
+│   ├── cdk.json  requirements.txt
 │   └── earshot_infra/
-│       ├── config.py           ← names helper (§9)
+│       ├── config.py           ← StageConfig: every name + ARN for a stage (wraps shared/names.py)
+│       ├── common.py           ← python_function(), log_group(), removal policy, tags
 │       ├── stacks/base_stack.py      ← persistent stack (composes constructs)
 │       ├── stacks/pipeline_stack.py  ← ephemeral stack (composes constructs)
 │       └── constructs/         ← one file per owner (see table)
 ├── services/                   ← ALL Lambda code; deployed as one asset dir
-│   ├── shared/                 ← names.py, http.py (responses), log.py, validate.py, clock.py
+│   ├── shared/                 ← names.py (single source for §9 names), http.py, log.py (EMF metrics), validate.py, clock.py
 │   ├── api/handler.py          ← routes: home, shows, show_detail, genres, trending, progress, health
 │   ├── ingest/handler.py
 │   ├── processor/handler.py
@@ -141,9 +143,15 @@ earshot/
     └── ai-usage.md             ← AI tool citations for the slides
 ```
 
-**Pattern:** each member owns a **construct** (`constructs/<x>.py`) and its **service code**. M6 owns the two thin **stack** files that instantiate every construct. M6's first task (tracker `M6-01`) commits stub constructs for everyone, so the whole app synthesizes and deploys from day one. Each member then fills in their own construct.
+**Pattern:**
+- Each member owns a **construct** (`constructs/<x>.py`) and its **service code**.
+- M6 owns the two thin **stack** files that instantiate every construct. M6-01 committed a stub construct for everyone, so the whole app synthesizes and deploys from day one. Each member then fills in their own construct.
+- **Each stub's docstring is its spec:** what it must create, its inputs, and the attributes it **exposes** (e.g. `auth.user_pool`, `ingest.function`). Keep those attribute names; other constructs read them.
+- An exposed attribute is `None` until its owner implements it. Consumers check for `None` and skip that wiring until then.
+- `core.py` (M6) holds the shared resources: the DynamoDB table, the lake bucket, both SNS topics and the flags parameter.
+- Never build a resource name by hand: use `cfg.<name>` / `cfg.<name>_arn` (`config.py`).
 
-Lambda assets: `Code.from_asset("../services", exclude=["**/tests/**","**/__pycache__/**"])`. Handlers look like `api.handler.main`, `ingest.handler.main`, etc. Every folder has an `__init__.py`.
+Lambdas: create them with **`common.python_function(...)`**. It sets the name (`earshot-<stage>-<name>`), Python 3.12 arm64, the `services/` asset, `STAGE`, and a 7-day log group. Handlers look like `api.handler.main`, `ingest.handler.main`, etc. Every folder has an `__init__.py`.
 
 ---
 
@@ -160,7 +168,7 @@ Lambda assets: `Code.from_asset("../services", exclude=["**/tests/**","**/__pyca
 
 **Hard rules:**
 - **Base never references Pipeline objects.** The ingest Lambda finds the stream by its **deterministic name** (§9) and IAM grants use the name-based ARN. If the stream doesn't exist, ingest returns `503 PIPELINE_OFFLINE`.
-- Pipeline may reference Base objects (props passed in `app.py`).
+- **Pipeline references Base resources by name/ARN from `cfg`** (e.g. `cfg.function_arn("processor")`, `cfg.lake_bucket_arn`, `cfg.processor_dlq_arn`), never through CDK props. That means no CloudFormation exports, so base can be updated while pipeline is deployed, and pipeline can be destroyed anytime. IAM that base resources need for pipeline resources is granted in base on those ARNs (e.g. the processor role's Kinesis read on `cfg.stream_arn`).
 - `make pipeline-down STAGE=x` after **every** working session. Nothing hourly-billed may be left running overnight.
 - All log groups have **7-day retention**. Removal policy is `DESTROY` for all stages except the `prod` DynamoDB table and lake bucket (`RETAIN`).
 - Tags on everything: `project=earshot`, `stage=<stage>`, `owner=<M#>`.
@@ -475,4 +483,5 @@ Add the newest entry at the top: `YYYY-MM-DD · M<#> · §<section> · what chan
 
 | Date | Who | Section | Change |
 |---|---|---|---|
+| 2026-10-19 | M6 | §4, §5 | M6-01 skeleton. **Pipeline now references base by name/ARN, not CDK props** (avoids CloudFormation export locks). `core.py` owns the table, lake bucket, SNS topics and flags param. `services/shared/names.py` is the single source of names. Lambdas use `common.python_function`. Dropped `contracts/event.schema.json` and `api.md` copies (§6/§7 are the contract; copies would drift) |
 | 2026-09-27 | Team | All | v1 created: architecture, contracts §6–§9 (DRAFT), CDK Python, stdlib-only Lambdas, committed catalog snapshot, SQS DLQ, simulator group |
