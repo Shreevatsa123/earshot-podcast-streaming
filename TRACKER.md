@@ -122,7 +122,7 @@
 ### M6: Platform, Monitoring & Testing
 | ID | Task | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|
-| M6-01 | Repo skeleton (§4), `config.py`, `app.py`, both stacks with **stub constructs for every member**, Makefile (§5); `cdk synth` green | — | todo | | **Do first; unblocks everyone** |
+| M6-01 | Repo skeleton (§4), `config.py`, `app.py`, both stacks with **stub constructs for every member**, Makefile (§5); `cdk synth` green | — | review | | **Do first; unblocks everyone.** Skeleton + stubs + shared helpers; 52 unit tests pass. CDK synth tests need `make install` (run locally before merging) |
 | M6-02 | Shared `prod` account: IAM access for 5 teammates, Budgets, Lambda concurrency quota increase request | — | todo | | |
 | M6-03 | Free plan service check in `prod` (deploy one tiny resource per approved service, §3); report blockers | M6-02 | todo | | |
 | M6-04 | GitHub Actions on every PR: `cdk synth` + `pytest` (no deploy) | M6-01 | todo | | |
