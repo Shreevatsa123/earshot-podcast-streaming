@@ -7,7 +7,7 @@ Earshot is a podcast streaming web app built on AWS serverless services. Users l
 | File | Purpose |
 |---|---|
 | `CONTEXT.md` | Architecture, contracts, names and rules. **The source of truth** |
-| `TRACKER.md` | Tasks, owners, dependencies, status, blockers, success criteria |
+| `TRACKER.md` | Tasks, owners, dependencies, status, success criteria |
 | `AGENTS.md` | Rules for AI agents working in this repo (`CLAUDE.md` and `.kiro/steering/` point to it) |
 | `docs/BRD.md` | Business requirements: scope, constraints, requirements, acceptance |
 | `docs/topic-summary.md` | The topic summary submitted to the instructor (historical record) |
@@ -20,14 +20,19 @@ Earshot is a podcast streaming web app built on AWS serverless services. Users l
 
 ## Developer setup
 
-**Needs:** Python 3.12, Node 20+, AWS CLI v2 (`aws configure`, region `us-east-1`), the CDK CLI (`npm install -g aws-cdk`), and `make`. On Windows, use WSL.
+**Needs:** Python 3.12, Node 22+, AWS CLI v2 (`aws configure`, region `us-east-1`), the CDK CLI (`npm install -g aws-cdk`), and `make`. On Windows, use WSL.
+
+**No local setup?** Use GitHub Codespaces: green **Code** button → **Codespaces** → **Create codespace on main**. It already has Python, Node and `make`.
 
 ```bash
 python3.12 -m venv .venv && source .venv/bin/activate
 make install                    # Python dependencies
+make lint                       # real errors only (undefined names, syntax)
 make test                       # unit tests (includes a CDK synth check)
 make synth STAGE=<you>          # build the templates; changes nothing in AWS
 ```
+
+**CI:** every PR automatically runs `make lint`, `make test` and `make synth`, and shows ✅ or ❌ on the PR. Merge only on ✅.
 
 **Deploying to your own AWS account** (stage = your first name, lowercase). Set Budgets alerts first.
 

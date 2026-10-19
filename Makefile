@@ -20,13 +20,16 @@ PIPELINE_STACK := earshot-$(STAGE)-pipeline
 # Lets scripts import shared.names and earshot_infra.config.
 export PYTHONPATH := $(CURDIR)/services:$(CURDIR)/infra
 
-.PHONY: help install test synth diff bootstrap deploy-base seed pipeline-up pipeline-down destroy-all check-stage
+.PHONY: help install lint test synth diff bootstrap deploy-base seed pipeline-up pipeline-down destroy-all check-stage
 
 help: ## Show this list
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-14s %s\n", $$1, $$2}'
 
 install: ## Install Python dependencies into the active venv
 	$(PY) -m pip install -r requirements-dev.txt
+
+lint: ## Check Python code for real errors (undefined names, syntax); CI runs this
+	$(PY) -m ruff check --select F,E9 .
 
 test: ## Run the unit tests
 	$(PY) -m pytest
