@@ -13,10 +13,10 @@ You are helping one member of a 6-person team build **Earshot** (MSML 650 term p
 ## While working
 
 - **Edit only paths owned by your member** (`CONTEXT.md` §4), plus your own rows in `TRACKER.md` and §15 of `CONTEXT.md`.
-  - Need a change elsewhere? Add a row to TRACKER's **Blockers** table naming the owner. Don't edit their files.
+  - Need a change elsewhere? Don't edit their files. Tell the user exactly what's needed and from which member (M#), so they can message that person in the group chat.
 - **Contracts (`CONTEXT.md` §6–§9, `contracts/`) are not yours to change silently.** Propose the change in a separate PR labelled `contract-change` (rules in §12). Code must match the current contracts.
 - Use only the approved services and stack (§3). Lambda code: Python 3.12, stdlib + boto3 only. IaC: CDK v2 Python.
-- Write unit tests for core logic (`tests/unit/`). Run `pytest` and `cdk synth` before opening a PR.
+- Write unit tests for core logic (`tests/unit/`). Run `make lint`, `make test` and `make synth STAGE=<stage>` before opening a PR. CI runs the same checks on every PR, and a red ❌ must be fixed before merging.
 - Keep diffs small and focused on the one task.
 
 ## AWS safety (cost and shared environments)

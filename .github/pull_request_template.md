@@ -5,8 +5,7 @@ Member: M_ · Tracker ID(s): ___
 -
 
 ## How I verified it
-- [ ] `pytest` passes
-- [ ] `cdk synth` passes
+- [ ] CI is ✅ on this PR (it runs lint, tests and `cdk synth`)
 - [ ] Deployed and checked in my own stage: `STAGE=____` (or N/A)
 
 ## Docs updated (required)
@@ -17,6 +16,6 @@ Member: M_ · Tracker ID(s): ___
 
 ## Safety
 - [ ] Only edited paths my member owns (CONTEXT §4)
-- [ ] No secrets, credentials, `.env` or `cdk.out/`
+- [ ] No secrets, credentials, account IDs, emails, `.env` or `cdk.out/` (the repo is public)
 - [ ] Nothing hourly-billed outside the pipeline stack
 - [ ] Contract change? → labelled `contract-change` and affected owners + M6 requested as reviewers

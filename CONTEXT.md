@@ -27,7 +27,7 @@
     - Before starting, read `TRACKER.md` and check the task's dependencies are `done`.
     - In the **same PR** as your code, update the task's status, PR link and notes in `TRACKER.md`.
     - If you made or changed a decision, add a line to §15 Changelog.
-    - If you hit a blocker in someone else's area, add it to the Blockers table in `TRACKER.md` instead of editing their files.
+    - If you need something from someone else's area, don't edit their files. Tell your user what's needed and from which member, so they can message that person in the group chat.
 11. **Never commit secrets, `.env` files, AWS credentials, or `cdk.out/`.** Never push directly to `main`.
 
 ---
@@ -79,7 +79,7 @@
 | Area | Choice |
 |---|---|
 | Region | **us-east-1** (all accounts, all resources) |
-| IaC | **AWS CDK v2, Python** (`aws-cdk-lib`), CDK CLI via Node 20+ |
+| IaC | **AWS CDK v2, Python** (`aws-cdk-lib`), CDK CLI via Node 22+ (Node 20 is end-of-life) |
 | Lambda runtime | **Python 3.12, arm64**, stdlib + boto3 only, 256 MB default (512 MB for read API) |
 | Frontend | **React + Vite + TypeScript**, `react-oidc-context` / `oidc-client-ts` for Cognito managed login |
 | Simulator / load tools | Python 3.11+ on EC2 (Amazon Linux 2023), `httpx` + `boto3` allowed here; **Locust** for load tests |
@@ -108,7 +108,7 @@ earshot/
 ├── CLAUDE.md                   ← Claude Code entry point → imports AGENTS.md
 ├── .kiro/steering/earshot.md   ← Kiro entry point → includes CONTEXT.md + TRACKER.md
 ├── CONTEXT.md                  ← this file (living)
-├── TRACKER.md                  ← tasks, status, blockers (living)
+├── TRACKER.md                  ← tasks, status (living)
 ├── Makefile                    ← deploy/teardown/seed commands (M6); `make help`
 ├── pyproject.toml              ← pytest + ruff settings (M6)
 ├── requirements-dev.txt        ← local Python deps: CDK, pytest, boto3, moto (M6)
@@ -435,8 +435,9 @@ python -m simulator replay   --file events.jsonl --direct-kinesis --stage <stage
   - **Non-contract sections** (§1–§5, §10–§14): any member may update through a normal PR with one review.
   - **Contract sections** (§6–§9) and `contracts/`: PR labelled `contract-change`, approved by **every affected owner + M6**. While status is `DRAFT`, anything can change. Once it's `FROZEN`, only **additive** changes (new optional field, new route, new item type). Never rename or remove a field.
   - Every change gets a §15 Changelog line.
-- **Updating `TRACKER.md`:** each member keeps their own rows current. Agents update rows as part of their PR (rule 10). Anyone may add tasks or blockers; only the owner (or M6) marks a task `done`.
-- **Branches:** `m<#>/<short-desc>` (e.g. `m4/progress-conditional-write`). PR to `main`, one teammate review, squash merge. `main` must always `cdk synth` cleanly.
+- **Updating `TRACKER.md`:** each member keeps their own rows current. Agents update rows as part of their PR (rule 10). Anyone may add tasks; only the owner (or M6) marks a task `done`. Blockers go to the group chat, not a table.
+- **Branches:** `m<#>/<short-desc>` (e.g. `m4/progress-conditional-write`). PR to `main`, one teammate review, squash merge. **CI must show ✅ before merging** (`.github/workflows/ci.yml` runs `make lint`, `make test`, `make synth`), so `main` always synthesizes cleanly.
+- **Public repo:** never commit AWS account IDs, emails, keys or passwords.
 - **Commits:** `<area>: <imperative summary>` (e.g. `processor: dedupe play events with transactions`).
 - **Definition of done** for any task: code + unit tests for core logic + deployed and verified in your own stage + `TRACKER.md` row updated + any contract fixture updated.
 - **Mocks first:** build against `contracts/samples/` before the real upstream exists.
@@ -483,5 +484,6 @@ Add the newest entry at the top: `YYYY-MM-DD · M<#> · §<section> · what chan
 
 | Date | Who | Section | Change |
 |---|---|---|---|
+| 2026-10-19 | M6 | §0, §3, §12 | Added CI (M6-04): lint, tests and synth on every PR; merge only on ✅. Removed the TRACKER Blockers table (blockers go to the group chat). Node 22+ (20 is EOL). No account IDs/emails in the public repo |
 | 2026-10-19 | M6 | §4, §5 | M6-01 skeleton. **Pipeline now references base by name/ARN, not CDK props** (avoids CloudFormation export locks). `core.py` owns the table, lake bucket, SNS topics and flags param. `services/shared/names.py` is the single source of names. Lambdas use `common.python_function`. Dropped `contracts/event.schema.json` and `api.md` copies (§6/§7 are the contract; copies would drift) |
 | 2026-09-27 | Team | All | v1 created: architecture, contracts §6–§9 (DRAFT), CDK Python, stdlib-only Lambdas, committed catalog snapshot, SQS DLQ, simulator group |

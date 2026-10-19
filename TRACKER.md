@@ -4,30 +4,33 @@
 
 ## How to update
 
-- **Status values:** `todo` · `doing` · `review` (PR open) · `done` (merged + verified in your stage) · `blocked` (add a row to Blockers).
+- **Status values:** `todo` · `doing` · `review` (PR open) · `done` (merged + verified in your stage) · `blocked` (say who you're waiting on in Notes, and message them in the group chat).
 - Update your row **in the same PR** as the work: Status, PR link, Notes. AI agents do this automatically (see `AGENTS.md`).
 - **Start a task only when everything in "Depends on" is `done`.**
   - A *(soft)* dependency means you can start using fixtures and mocks; finish the connection when the real thing lands.
-- Anyone may **add** tasks (next free ID in your section) or blockers. Only the owner or M6 marks a task `done`.
+- Anyone may **add** tasks (next free ID in your section). Only the owner or M6 marks a task `done`.
+- **CI** (GitHub Actions) runs lint, tests and synth on every PR. Merge only when it shows ✅.
 - A **gate** is reached when all its items are `done`. M6 then ticks it and runs the integration check in `prod`.
 
 ## Team
 
-| ID | Role | Name | GitHub | Stage name | AWS account ID | Budgets set | Tools installed | Base deployed in own account |
-|---|---|---|---|---|---|---|---|---|
-| M1 | Frontend & Auth | | | | | ☐ | ☐ | ☐ |
-| M2 | API & Catalog | | | | | ☐ | ☐ | ☐ |
-| M3 | Ingest & Simulator | | | | | ☐ | ☐ | ☐ |
-| M4 | Real-time Processing | | | | | ☐ | ☐ | ☐ |
-| M5 | Data Lake & Recommendations | | | | | ☐ | ☐ | ☐ |
-| M6 | Platform, Monitoring & Testing | | | | | ☐ | ☐ | ☐ |
-| — | **Shared `prod` account** (owned by M6) | | | `prod` | | ☐ | — | ☐ |
+| ID | Role | Name | GitHub | Stage name | Budgets set | Tools installed | Base deployed in own account |
+|---|---|---|---|---|---|---|---|
+| M1 | Frontend & Auth | | | | ☐ | ☐ | ☐ |
+| M2 | API & Catalog | | | | ☐ | ☐ | ☐ |
+| M3 | Ingest & Simulator | | | | ☐ | ☐ | ☐ |
+| M4 | Real-time Processing | | | | ☐ | ☐ | ☐ |
+| M5 | Data Lake & Recommendations | | | | ☐ | ☐ | ☐ |
+| M6 | Platform, Monitoring & Testing | | | | ☐ | ☐ | ☐ |
+| — | **Shared `prod` account** (owned by M6) | | | `prod` | ☐ | — | ☐ |
+
+This repo is **public**: don't put AWS account IDs, emails or keys in it.
 
 **Personal setup (everyone):**
 - AWS account in us-east-1, created after Jun 8, 2026.
 - **Budgets alerts at $5 and $20 before deploying anything.**
 - MFA on root, plus an admin IAM user.
-- Install Python 3.12, Node 20+, AWS CLI v2, CDK v2, Git.
+- Install Python 3.12, Node 22+, AWS CLI v2, CDK v2, Git, or just use GitHub Codespaces (README).
 - Read `CONTEXT.md`.
 
 ## Fixed course deadlines (from the syllabus, not a plan)
@@ -122,10 +125,10 @@
 ### M6: Platform, Monitoring & Testing
 | ID | Task | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|
-| M6-01 | Repo skeleton (§4), `config.py`, `app.py`, both stacks with **stub constructs for every member**, Makefile (§5); `cdk synth` green | — | review | | **Do first; unblocks everyone.** Skeleton + stubs + shared helpers; 52 unit tests pass. CDK synth tests need `make install` (run locally before merging) |
+| M6-01 | Repo skeleton (§4), `config.py`, `app.py`, both stacks with **stub constructs for every member**, Makefile (§5); `cdk synth` green | — | done | [#2](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/2) | Verified in Codespaces: 59 tests + `cdk synth` pass |
 | M6-02 | Shared `prod` account: IAM access for 5 teammates, Budgets, Lambda concurrency quota increase request | — | todo | | |
 | M6-03 | Free plan service check in `prod` (deploy one tiny resource per approved service, §3); report blockers | M6-02 | todo | | |
-| M6-04 | GitHub Actions on every PR: `cdk synth` + `pytest` (no deploy) | M6-01 | todo | | |
+| M6-04 | GitHub Actions on every PR: `cdk synth` + `pytest` (no deploy) | M6-01 | review | | `.github/workflows/ci.yml`: lint + tests + synth (dev and prod) on every PR and push to `main` |
 | M6-05 | Monitoring construct: dashboard + ≤ 10 alarms + ops topic (§10) | M6-01 | todo | | |
 | M6-06 | Locust `/home` test (50 users, 5 min, run from EC2) | M2-06, M3-07 | todo | | |
 | M6-07 | Acceptance harness `tests/acceptance/` (S1–S10 runner) + `docs/results.md` template | M6-01 | todo | | |
@@ -173,12 +176,6 @@
 | S8 | Graceful degradation | 0 × 5xx, `degraded:true` | M2 | | todo |
 | S9 | Quality alert | Email < 2 min | M4 + M3 | | todo |
 | S10 | Cost & automation | < $30; pipeline-up < 10 min; full deploy < 25 min; 0 idle hourly | M6 | | todo |
-
-## Blockers
-
-| Opened by | Task | Blocked on (task / person) | Description | Status |
-|---|---|---|---|---|
-| | | | | |
 
 ## Demo runbook (use on demo day)
 

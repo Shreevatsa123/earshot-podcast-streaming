@@ -1,0 +1,57 @@
+# CI (owner: M6 · tracker M6-04): the same checks as `make lint`, `make test` and `make synth`.
+# Runs on every pull request and every push to main. It never deploys and has no AWS
+# credentials (synth uses a placeholder account).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A new push to the same PR cancels the older, still-running check.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: lint, test, synth
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # No AWS credentials here; skip the slow instance-metadata lookup.
+      AWS_EC2_METADATA_DISABLED: "true"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements-dev.txt
+            infra/requirements.txt
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -r requirements-dev.txt
+          npm install -g aws-cdk
+
+      - name: Lint (real errors only)
+        run: make lint
+
+      - name: Unit tests (includes CDK synth tests)
+        run: make test
+
+      - name: Synth a dev stage
+        run: make synth STAGE=ci
+
+      - name: Synth prod
+        run: make synth STAGE=prod
