@@ -104,7 +104,7 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 ### M4: Real-time Processing
 | ID | Task | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|
-| M4-01 | Processor: decode + progress conditional update (§8.2) + unit tests for out-of-order input | M3-04 *(soft)* | doing | | Implementing against handwritten events while M3-04 fixture is pending |
+| M4-01 | Processor: decode + progress conditional update (§8.2) + unit tests for out-of-order input | M3-04 *(soft)* | doing | | Implementation and local checks complete; branch push/PR pending GitHub CLI authentication |
 | M4-02 | Trending via `TransactWriteItems` + dedupe marker; duplicate unit tests | M4-01 | todo | | |
 | M4-03 | QoE minute windows + exactly one SNS publish at threshold | M4-01 | todo | | |
 | M4-04 | Partial batch failures, skip malformed records, metrics (§10) | M4-01 | todo | | |
