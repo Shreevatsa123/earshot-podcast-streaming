@@ -5,3 +5,4 @@
 | 2026-09-27 | Team | Kiro (Claude) | Brainstorming the topic; drafting the BRD, CONTEXT.md, TRACKER.md and agent instructions |
 | 2026-10-19 | M6 | Kiro (Claude) | M6-01 repo skeleton: CDK app and stacks, stub constructs, Makefile, shared Lambda helpers, unit tests |
 | 2026-10-19 | M6 | Kiro (Claude) | M6-04 CI workflow (lint, tests, synth) and tracker cleanup |
+| 2026-11-03 | M4 | Copilot SDK in VS Code | M4-01 processor progress handling and unit tests |
