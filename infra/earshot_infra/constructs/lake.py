@@ -8,6 +8,14 @@ The lake **bucket** itself is ``core.lake_bucket`` (M6). This construct creates:
   exactly as in §6, partitions ``dt``/``hour`` with **partition projection** (no
   crawlers, no ``MSCK REPAIR``). L1 ``CfnDatabase`` / ``CfnTable``, because the Glue L2
   is a separate alpha package.
+- Athena workgroup ``cfg.athena_workgroup``: default results at
+  ``s3://<lake>/athena-results/``, 1 GB per-query scan cutoff,
+  ``recursive_delete_option=True`` (so stack deletion works after queries ran).
+- A 7-day lifecycle rule on ``athena-results/`` in the shared lake bucket.
+
+The workgroup does **not** enforce its configuration. Enforcing would override each
+query's own output location, and the recs job (§10) writes its results under
+``recs-runs/<run_id>/``. The scan cutoff applies either way.
 
 The table is also the lake's schema: Firehose (M5-02) converts JSON to Parquet using it,
 so a wrong column here means wrong files or records in ``errors/``.
@@ -18,6 +26,7 @@ Pipeline code refers to them by name (``cfg.glue_*``).
 
 from __future__ import annotations
 
+from aws_cdk import Duration
 from aws_cdk import aws_athena as athena
 from aws_cdk import aws_glue as glue
 from constructs import Construct
@@ -48,6 +57,11 @@ PARTITION_KEYS: tuple[tuple[str, str], ...] = (("dt", "string"), ("hour", "strin
 
 #: First date the projection covers (CONTEXT §9).
 PROJECTION_START = "2026-09-01"
+
+#: Per-query scan cutoff for the workgroup (CONTEXT §9): 1 GB.
+SCAN_CUTOFF_BYTES = 1024**3
+
+ATHENA_RESULTS_RETENTION = Duration.days(7)
 
 PARQUET_INPUT_FORMAT = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
 PARQUET_OUTPUT_FORMAT = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
@@ -119,6 +133,28 @@ class Lake(Construct):
         # the order. Without this, the table can be created first and fail.
         table.add_dependency(database)
 
+        workgroup = athena.CfnWorkGroup(
+            self,
+            "Workgroup",
+            name=cfg.athena_workgroup,
+            description="Earshot queries: analytics, recs, reconciliation (CONTEXT §9)",
+            state="ENABLED",
+            recursive_delete_option=True,
+            work_group_configuration=athena.CfnWorkGroup.WorkGroupConfigurationProperty(
+                bytes_scanned_cutoff_per_query=SCAN_CUTOFF_BYTES,
+                enforce_work_group_configuration=False,
+                result_configuration=athena.CfnWorkGroup.ResultConfigurationProperty(
+                    output_location=f"{lake_url}{names.ATHENA_RESULTS_PREFIX}",
+                ),
+            ),
+        )
+
+        core.lake_bucket.add_lifecycle_rule(
+            id="ExpireAthenaResults",
+            prefix=names.ATHENA_RESULTS_PREFIX,
+            expiration=ATHENA_RESULTS_RETENTION,
+        )
+
         self.database: glue.CfnDatabase | None = database
         self.table: glue.CfnTable | None = table
-        self.workgroup: athena.CfnWorkGroup | None = None
+        self.workgroup: athena.CfnWorkGroup | None = workgroup

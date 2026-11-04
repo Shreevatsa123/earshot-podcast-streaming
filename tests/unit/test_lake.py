@@ -13,7 +13,7 @@ cdk = pytest.importorskip("aws_cdk", reason="aws-cdk-lib isn't installed; run `m
 from aws_cdk.assertions import Template  # noqa: E402
 
 from earshot_infra.config import StageConfig  # noqa: E402
-from earshot_infra.constructs.lake import EVENT_COLUMNS  # noqa: E402
+from earshot_infra.constructs.lake import EVENT_COLUMNS, Lake  # noqa: E402
 from earshot_infra.stacks.base_stack import BaseStack  # noqa: E402
 
 ACCOUNT = "123456789012"
@@ -116,7 +116,48 @@ def test_table_is_created_after_its_database(dev):
     assert database_id in table.get("DependsOn", [])
 
 
+def test_workgroup(dev):
+    _, template = dev
+    _, workgroup = only(template, "AWS::Athena::WorkGroup")
+    props = workgroup["Properties"]
+    assert props["Name"] == f"earshot-{STAGE}"
+    assert props["State"] == "ENABLED"
+    assert props["RecursiveDeleteOption"] is True
+    config = props["WorkGroupConfiguration"]
+    assert config["BytesScannedCutoffPerQuery"] == 1024**3
+    assert config["ResultConfiguration"]["OutputLocation"] == f"{LAKE}/athena-results/"
+    # Not enforced: the recs job (§10) sets its own output location under recs-runs/.
+    assert config["EnforceWorkGroupConfiguration"] is False
+
+
+def test_athena_results_expire_after_7_days(dev):
+    _, template = dev
+    lake = template.find_resources(
+        "AWS::S3::Bucket", {"Properties": {"BucketName": f"earshot-{STAGE}-lake-{ACCOUNT}"}}
+    )
+    assert len(lake) == 1
+    (bucket,) = lake.values()
+    assert {
+        "Id": "ExpireAthenaResults",
+        "Prefix": "athena-results/",
+        "ExpirationInDays": 7,
+        "Status": "Enabled",
+    } in bucket["Properties"]["LifecycleConfiguration"]["Rules"]
+
+
+def test_lake_exposes_its_resources(dev):
+    """Recs (M5-05) reads these attributes; None would mean "not implemented"."""
+    stack, _ = dev
+    lake = stack.node.find_child("Lake")
+    assert isinstance(lake, Lake)
+    assert lake.database is not None
+    assert lake.table is not None
+    assert lake.workgroup is not None
+
+
 def test_prod_uses_prod_names():
     _, template = synth("prod")
     _, database = only(template, "AWS::Glue::Database")
     assert database["Properties"]["DatabaseInput"]["Name"] == "earshot_prod"
+    _, workgroup = only(template, "AWS::Athena::WorkGroup")
+    assert workgroup["Properties"]["Name"] == "earshot-prod"
