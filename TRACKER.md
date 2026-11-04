@@ -114,7 +114,7 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 ### M5: Data Lake & Recommendations
 | ID | Task | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|
-| M5-01 | Lake construct (base): Glue DB, `events` table with partition projection, Athena workgroup + scan cutoff, lifecycle (§9) | M6-01 | todo | | |
+| M5-01 | Lake construct (base): Glue DB, `events` table with partition projection, Athena workgroup + scan cutoff, lifecycle (§9) | M6-01 | review | | Glue DB + `events` table (projection on `dt`/`hour`), workgroup (1 GB cutoff, not enforced: see §15), 7-day `athena-results/` expiry. Tests + synth pass; not yet deployed to own stage |
 | M5-02 | Firehose construct (pipeline): Kinesis source, Parquet conversion, 60 s buffer, Hive prefixes, error prefix | M5-01, M3-03 | todo | | |
 | M5-03 | SQL in `athena/`: `count_events`, `reconcile_trending`, `popular`, `recs` (§10); develop locally against fixtures first | M3-04 *(soft)* | todo | | |
 | M5-04 | Recs writer Lambda: result CSVs → RECS + POPULAR items, `RecsUsersWritten` metric | M5-03 | todo | | |

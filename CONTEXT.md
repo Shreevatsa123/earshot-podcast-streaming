@@ -484,6 +484,7 @@ Add the newest entry at the top: `YYYY-MM-DD · M<#> · §<section> · what chan
 
 | Date | Who | Section | Change |
 |---|---|---|---|
+| 2026-11-04 | M5 | §9, §10 | M5-01: the Athena workgroup does **not** enforce its configuration. Enforcing would override each query's output location, and the recs job writes under `recs-runs/<run_id>/` (§10). The 1 GB per-query cutoff applies to every query either way |
 | 2026-10-19 | M6 | §0, §3, §12 | Added CI (M6-04): lint, tests and synth on every PR; merge only on ✅. Removed the TRACKER Blockers table (blockers go to the group chat). Node 22+ (20 is EOL). No account IDs/emails in the public repo |
 | 2026-10-19 | M6 | §4, §5 | M6-01 skeleton. **Pipeline now references base by name/ARN, not CDK props** (avoids CloudFormation export locks). `core.py` owns the table, lake bucket, SNS topics and flags param. `services/shared/names.py` is the single source of names. Lambdas use `common.python_function`. Dropped `contracts/event.schema.json` and `api.md` copies (§6/§7 are the contract; copies would drift) |
 | 2026-09-27 | Team | All | v1 created: architecture, contracts §6–§9 (DRAFT), CDK Python, stdlib-only Lambdas, committed catalog snapshot, SQS DLQ, simulator group |
