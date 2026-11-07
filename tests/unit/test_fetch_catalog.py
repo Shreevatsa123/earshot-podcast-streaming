@@ -95,14 +95,19 @@ def test_check_catalog_reports_contract_problems():
     catalog["episodes"][0]["audio_url"] = "http://insecure.example/a.mp3"
     catalog["episodes"][1]["episode_id"] = catalog["episodes"][2]["episode_id"]
     catalog["shows"] = [show for show in catalog["shows"] if show["genre"] != "history"]
+    catalog["featured"] = [{"show_id": "1", "episode_id": "not-in-catalog"}]
 
     problems = "\n".join(fc.check_catalog(catalog))
     assert "isn't https" in problems
     assert "duplicate episode_id" in problems
     assert "no shows for genre history" in problems
+    assert "featured must list 20 different episodes" in problems
+    assert "not an episode in this catalog" in problems
 
 
 def test_committed_catalog_matches_the_contract():
     if not fc.DEFAULT_OUT.exists():
         pytest.skip("contracts/samples/catalog.json isn't committed yet (M2-01)")
-    assert fc.check_catalog(json.loads(fc.DEFAULT_OUT.read_text(encoding="utf-8"))) == []
+    catalog = json.loads(fc.DEFAULT_OUT.read_text(encoding="utf-8"))
+    assert fc.check_catalog(catalog) == []
+    assert len(catalog["featured"]) == fc.FEATURED_COUNT  # M2-02

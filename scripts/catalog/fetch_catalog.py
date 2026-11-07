@@ -29,6 +29,10 @@ category of the same name, 6 per genre, each with its 20 newest playable episode
 http audio) and a duration of 1 s to 24 h (events need ``duration_sec > 0`` and
 ``position_sec <= 86400``). A show appears under one genre only. ``episode_count`` counts
 the show's episodes in this snapshot.
+
+The committed file also has ``"featured": [{show_id, episode_id}]``: the 20 hand-picked,
+verified-playable episodes for the FEATURED item (M2-02). This script doesn't write it, so
+a re-run drops it: pick again and verify with ``check_featured.py``.
 """
 
 from __future__ import annotations
@@ -66,6 +70,7 @@ CANDIDATES_PER_GENRE = 60  # trending shows considered per genre
 EPISODES_TO_FETCH = 50  # newest episodes requested per show, before filtering
 MAX_DURATION_SEC = 86_400  # position_sec <= 86400 (CONTEXT §6)
 DESCRIPTION_CHARS = 600
+FEATURED_COUNT = 20  # the FEATURED item's hand-picked episodes (§8.1)
 
 SHOW_FIELDS = frozenset(
     {"show_id", "title", "author", "description", "image_url", "genre", "episode_count"}
@@ -233,6 +238,17 @@ def check_catalog(catalog: Mapping[str, Any]) -> list[str]:
             problems.append(f"{where}: duration_sec {duration!r} isn't 1..{MAX_DURATION_SEC}")
         if not episode.get("title") or type(episode.get("published_at")) is not int:
             problems.append(f"{where}: missing title or published_at")
+
+    # Added by hand (M2-02, check_featured.py), so it's checked only when present.
+    featured = catalog.get("featured")
+    if featured is not None:
+        by_id = {episode.get("episode_id"): episode for episode in episode_list}
+        if len(featured) != FEATURED_COUNT or len({f.get("episode_id") for f in featured}) != len(featured):
+            problems.append(f"featured must list {FEATURED_COUNT} different episodes")
+        for item in featured:
+            episode = by_id.get(item.get("episode_id"))
+            if set(item) != {"show_id", "episode_id"} or episode is None or episode["show_id"] != item["show_id"]:
+                problems.append(f"featured {item}: not an episode in this catalog")
     return problems
 
 
