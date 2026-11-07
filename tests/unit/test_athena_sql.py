@@ -115,8 +115,9 @@ def _code(sql: str) -> str:
 def test_query_documents_each_parameter(path: Path):
     """The caller (Step Functions, scripts) passes parameters by position, so the header is the API."""
     sql = path.read_text(encoding="utf-8")
-    documented = re.findall(r"^--\s+\d+\.\s+\w+", sql, flags=re.MULTILINE)
-    assert documented, f"{path.name}: no 'Parameters, in order' list in the header"
+    block = re.search(r"^-- Parameters, in order.*?\n((?:--.*\S.*\n)+)", sql, flags=re.MULTILINE)
+    assert block, f"{path.name}: no 'Parameters, in order' list in the header"
+    documented = re.findall(r"^--\s+\d+\.\s+\w+", block.group(1), flags=re.MULTILINE)
     assert _code(sql).count("?") == len(documented)
 
 
