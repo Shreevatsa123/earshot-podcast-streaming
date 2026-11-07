@@ -233,3 +233,49 @@ def test_popular_uses_the_window_including_late_arrivals(tmp_path):
     )
     assert sorted(row["episode_id"] for row in run_query(tmp_path, "popular", WEEK)) == ["first-ms", "late"]
 
+
+# ---- reconcile_trending.sql ---------------------------------------------------------------
+
+# One UTC day, D = 2026-11-02: dt from D to D+1, server_ts in [D 00:00, D+1 00:00).
+DAY = ["2026-11-02", "2026-11-03", ms("2026-11-02T00:00:00"), ms("2026-11-03T00:00:00")]
+
+
+def test_reconcile_counts_distinct_plays_per_episode(tmp_path):
+    first = event(episode_id="ep-1")
+    write_lake(
+        tmp_path,
+        [
+            first,
+            dict(first),
+            event(episode_id="ep-1"),
+            event(episode_id="ep-2", show_id="show-2"),
+            event(episode_id="ep-2", show_id="show-2", event_type="pause"),
+        ],
+    )
+    assert run_query(tmp_path, "reconcile_trending", DAY) == [
+        {"show_id": "show-1", "episode_id": "ep-1", "plays": 2},
+        {"show_id": "show-2", "episode_id": "ep-2", "plays": 1},
+    ]
+
+
+def test_reconcile_follows_server_ts_across_midnight(tmp_path):
+    """Trending's day is the UTC date of server_ts (§6), not the dt folder the file landed in."""
+    write_lake(
+        tmp_path,
+        [
+            # The previous day's play that landed in D's folder: not D's.
+            event(
+                episode_id="yesterday",
+                server_ts=ms("2026-11-01T23:59:59.900"),
+                arrival_ms=ms("2026-11-02T00:00:00.300"),
+            ),
+            # D's play that landed in D+1's folder: D's.
+            event(
+                episode_id="late-today",
+                server_ts=ms("2026-11-02T23:59:59.800"),
+                arrival_ms=ms("2026-11-03T00:00:00.200"),
+            ),
+            event(episode_id="tomorrow", server_ts=ms("2026-11-03T00:00:00")),
+        ],
+    )
+    assert plays(run_query(tmp_path, "reconcile_trending", DAY)) == [("late-today", 1)]
