@@ -180,3 +180,56 @@ def test_count_events_ignores_partitions_outside_dt_range(tmp_path):
     write_lake(tmp_path, [event(), event(server_ts=ms("2026-11-05T10:00:00"))])
     result = count_events(tmp_path, "2026-11-02", "2026-11-03", WINDOW_START, ms("2026-11-06T00:00:00"))
     assert result["distinct_events"] == 1
+
+
+# ---- popular.sql --------------------------------------------------------------------------
+
+# The recs job's 7-day window ending 2026-11-03 00:00 UTC; default events (11-02 10:00) fall inside.
+WEEK = ["2026-10-27", "2026-11-03", ms("2026-10-27T00:00:00"), ms("2026-11-03T00:00:00")]
+
+
+def plays(rows: list[dict[str, Any]]) -> list[tuple[str, int]]:
+    return [(row["episode_id"], row["plays"]) for row in rows]
+
+
+def test_popular_counts_distinct_play_events_only(tmp_path):
+    first = event(episode_id="ep-1")
+    write_lake(
+        tmp_path,
+        [
+            first,
+            dict(first),  # duplicate: counts once
+            event(episode_id="ep-1"),
+            event(episode_id="ep-1", event_type="pause"),
+            event(episode_id="ep-1", event_type="heartbeat"),
+            event(episode_id="ep-2", event_type="complete"),  # no plays at all: no row
+        ],
+    )
+    assert run_query(tmp_path, "popular", WEEK) == [{"show_id": "show-1", "episode_id": "ep-1", "plays": 2}]
+
+
+def test_popular_ranks_by_plays_then_episode_id(tmp_path):
+    counts = {"ep-a": 2, "ep-b": 3, "ep-c": 2}
+    write_lake(tmp_path, [event(episode_id=ep) for ep, n in counts.items() for _ in range(n)])
+    assert plays(run_query(tmp_path, "popular", WEEK)) == [("ep-b", 3), ("ep-a", 2), ("ep-c", 2)]
+
+
+def test_popular_returns_at_most_20(tmp_path):
+    write_lake(tmp_path, [event(episode_id=f"ep-{n:02d}") for n in range(1, 22)])
+    rows = run_query(tmp_path, "popular", WEEK)
+    assert [row["episode_id"] for row in rows] == [f"ep-{n:02d}" for n in range(1, 21)]
+
+
+def test_popular_uses_the_window_including_late_arrivals(tmp_path):
+    start, end = WEEK[2], WEEK[3]
+    write_lake(
+        tmp_path,
+        [
+            event(episode_id="too-early", server_ts=start - 1),
+            event(episode_id="first-ms", server_ts=start),
+            event(episode_id="late", server_ts=end - 100, arrival_ms=end + 300),  # in dt=2026-11-03
+            event(episode_id="too-late", server_ts=end),
+        ],
+    )
+    assert sorted(row["episode_id"] for row in run_query(tmp_path, "popular", WEEK)) == ["first-ms", "late"]
+
