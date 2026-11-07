@@ -496,6 +496,7 @@ Add the newest entry at the top: `YYYY-MM-DD · M<#> · §<section> · what chan
 
 | Date | Who | Section | Change |
 |---|---|---|---|
+| 2026-11-07 | M5 | §10 | M5-03 Athena SQL. Every query in `athena/` takes 4 positional parameters, `dt_from, dt_to, start_ms, end_ms` (`dt_to` = the day after the window, for late arrivals), and never reads the clock. `recs.sql`: seeds are the 2 most recent plays by `server_ts`; "hasn't played" means within the 30-day window; filler has `score` 0; a user's two rows may share an episode. Output, one row per item: `user_id, seed_rank, seed_show_id, seed_episode_id, item_rank, show_id, episode_id, score, source` |
 | 2026-11-07 | M6 | §5 | M6-02: shared `prod` account set up. **Every member can now deploy prod** (group `earshot-team`: PowerUserAccess + own access keys), through the `earshot-prod` CLI profile and the 5 prod rules. Replaces "only M6 touches prod". Bootstrap stays with M6 |
 | 2026-11-04 | M5 | §9, §10 | M5-01: the Athena workgroup does **not** enforce its configuration. Enforcing would override each query's output location, and the recs job writes under `recs-runs/<run_id>/` (§10). The 1 GB per-query cutoff applies to every query either way |
 | 2026-10-19 | M6 | §0, §3, §12 | Added CI (M6-04): lint, tests and synth on every PR; merge only on ✅. Removed the TRACKER Blockers table (blockers go to the group chat). Node 22+ (20 is EOL). No account IDs/emails in the public repo |

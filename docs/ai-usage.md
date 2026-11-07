@@ -7,3 +7,4 @@
 | 2026-10-19 | M6 | Kiro (Claude) | M6-04 CI workflow (lint, tests, synth) and tracker cleanup |
 | 2026-11-04 | M5 | Claude Code (Claude Opus 5.5) | M5-01 lake construct: Glue database and `events` table with partition projection, Athena workgroup, unit tests |
 | 2026-11-07 | M6 | Kiro (Claude) | M6-02: shared account setup steps (budget, IAM group and access-key policy), prod deploy rules |
+| 2026-11-07 | M5 | Claude Code (Claude Opus 5.5) | M5-03 Athena SQL (`count_events`, `popular`, `reconcile_trending`, `recs`), DuckDB test harness and tests |
