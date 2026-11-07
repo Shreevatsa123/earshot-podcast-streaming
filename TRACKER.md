@@ -17,7 +17,7 @@
 | ID | Role | Name | GitHub | Stage name | Budgets set | Tools installed | Base deployed in own account |
 |---|---|---|---|---|---|---|---|
 | M1 | Frontend & Auth | | | | ☐ | ☐ | ☐ |
-| M2 | API & Catalog | | | | ☐ | ☐ | ☐ |
+| M2 | API & Catalog | Sankha | SankhaS | `sankha` | ☑ | ☐ | ☐ |
 | M3 | Ingest & Simulator | | | | ☐ | ☐ | ☐ |
 | M4 | Real-time Processing | | | | ☐ | ☐ | ☐ |
 | M5 | Data Lake & Recommendations | | | | ☐ | ☐ | ☐ |
@@ -81,7 +81,7 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 ### M2: API & Catalog
 | ID | Task | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|
-| M2-01 | `fetch_catalog.py` → commit `contracts/samples/catalog.json` (~50 shows × 20 episodes, 8 genres, §8.3) | — | todo | | Needs Podcast Index key |
+| M2-01 | `fetch_catalog.py` → commit `contracts/samples/catalog.json` (~50 shows × 20 episodes, 8 genres, §8.3) | — | review | [#8](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/8) | `scripts/catalog/fetch_catalog.py` → `catalog.json`: 48 shows (6 per genre) × ≤ 20 newest playable episodes = 958 episodes, from Podcast Index trending on Nov 7 (shape in §15). Keys are in prod SSM `/earshot/prod/podcastindex/*` |
 | M2-02 | Pick 20 verified-playable `FEATURED` episodes | M2-01 | todo | | |
 | M2-03 | `seed_catalog.py`: snapshot → Show / Episode / Featured items (§8.1); `make seed` | M2-01, M6-01 | todo | | |
 | M2-04 | API construct: HTTP API, JWT authorizer (both clients), CORS, throttling, routes, `POST /events` → M3 ingest function | M6-01, M1-02 | todo | | |
