@@ -22,7 +22,7 @@
 | M4 | Real-time Processing | | | | ☐ | ☐ | ☐ |
 | M5 | Data Lake & Recommendations | | | | ☐ | ☐ | ☐ |
 | M6 | Platform, Monitoring & Testing | | | | ☐ | ☐ | ☐ |
-| — | **Shared `prod` account** (owned by M6) | | | `prod` | ☐ | — | ☐ |
+| — | **Shared `prod` account** (owned by M6) | | | `prod` | ☑ | — | ☐ |
 
 This repo is **public**: don't put AWS account IDs, emails or keys in it.
 
@@ -32,6 +32,7 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 - MFA on root, plus an admin IAM user.
 - Install Python 3.12, Node 22+, AWS CLI v2, CDK v2, Git, or just use GitHub Codespaces (README).
 - Read `CONTEXT.md`.
+- **Shared `prod` account:** sign in with the login M6 sent you, create an access key, and run `aws configure --profile earshot-prod`. Follow the prod rules in CONTEXT §5.
 
 ## Fixed course deadlines (from the syllabus, not a plan)
 
@@ -126,9 +127,9 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 | ID | Task | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|
 | M6-01 | Repo skeleton (§4), `config.py`, `app.py`, both stacks with **stub constructs for every member**, Makefile (§5); `cdk synth` green | — | done | [#2](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/2) | Verified in Codespaces: 59 tests + `cdk synth` pass |
-| M6-02 | Shared `prod` account: IAM access for 5 teammates, Budgets, Lambda concurrency quota increase request | — | todo | | |
+| M6-02 | Shared `prod` account: IAM access for 5 teammates, Budgets, Lambda concurrency quota increase request | — | done | [#5](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/5) | Console work done Nov 7. Monthly budget with alerts at $5, $20 and forecast (credits excluded); root MFA; admin IAM user. Limits checked: Lambda concurrency 400, EC2 32 vCPUs, both enough, so no increase requested. Free plan lasts past the demo; default VPC exists. 5 teammates in `earshot-team` (deploy access); prod rules in CONTEXT §5 |
 | M6-03 | Free plan service check in `prod` (deploy one tiny resource per approved service, §3); report blockers | M6-02 | todo | | |
-| M6-04 | GitHub Actions on every PR: `cdk synth` + `pytest` (no deploy) | M6-01 | review | | `.github/workflows/ci.yml`: lint + tests + synth (dev and prod) on every PR and push to `main` |
+| M6-04 | GitHub Actions on every PR: `cdk synth` + `pytest` (no deploy) | M6-01 | done | [#3](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/3) | `.github/workflows/ci.yml`: lint + tests + synth (dev and prod) on every PR and push to `main`; green since Oct 19 |
 | M6-05 | Monitoring construct: dashboard + ≤ 10 alarms + ops topic (§10) | M6-01 | todo | | |
 | M6-06 | Locust `/home` test (50 users, 5 min, run from EC2) | M2-06, M3-07 | todo | | |
 | M6-07 | Acceptance harness `tests/acceptance/` (S1–S10 runner) + `docs/results.md` template | M6-01 | todo | | |
