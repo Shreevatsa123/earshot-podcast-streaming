@@ -81,14 +81,14 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 ### M2: API & Catalog
 | ID | Task | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|
-| M2-01 | `fetch_catalog.py` → commit `contracts/samples/catalog.json` (~50 shows × 20 episodes, 8 genres, §8.3) | — | review | [#8](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/8) | `scripts/catalog/fetch_catalog.py` → `catalog.json`: 48 shows (6 per genre) × ≤ 20 newest playable episodes = 958 episodes, from Podcast Index trending on Nov 7 (shape in §15). Keys are in prod SSM `/earshot/prod/podcastindex/*` |
+| M2-01 | `fetch_catalog.py` → commit `contracts/samples/catalog.json` (~50 shows × 20 episodes, 8 genres, §8.3) | — | done | [#8](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/8) | `scripts/catalog/fetch_catalog.py` → `catalog.json`: 48 shows (6 per genre) × ≤ 20 newest playable episodes = 958 episodes, from Podcast Index trending on Nov 7 (shape in §15). Keys are in prod SSM `/earshot/prod/podcastindex/*` |
 | M2-02 | Pick 20 verified-playable `FEATURED` episodes | M2-01 | todo | | |
 | M2-03 | `seed_catalog.py`: snapshot → Show / Episode / Featured items (§8.1); `make seed` | M2-01, M6-01 | todo | | |
 | M2-04 | API construct: HTTP API, JWT authorizer (both clients), CORS, throttling, routes, `POST /events` → M3 ingest function | M6-01, M1-02 | todo | | |
 | M2-05 | API Lambda: `/health`, `/genres`, `/shows`, `/shows/{id}`, `/progress/{id}`, `/trending` (§7.3) | M2-03, M2-04 | todo | | |
 | M2-06 | `/home` rules 1–6 (§7.4): fallback chain, short-timeout client, 10 s flags cache, sim header, `HomeFallback` metric | M2-05 | todo | | |
 | M2-07 | Commit sample responses `home.json`, `shows.json`, `show_detail.json`, `trending.json`, `progress.json` | M2-01 | todo | | Unblocks M1 |
-| M2-08 | `scripts/set_flag.py` for `recs_enabled` / `recs_fault_injection` | M6-01 | todo | | |
+| M2-08 | `scripts/set_flag.py` for `recs_enabled` / `recs_fault_injection` | M6-01 | doing | | `python scripts/set_flag.py --stage <s> [FLAG=true\|false ...] [--reset]`; no arguments = show. Verified in prod: show, flip `recs_fault_injection` on, `--reset` |
 
 ### M3: Ingest & Simulator
 | ID | Task | Depends on | Status | PR | Notes |
