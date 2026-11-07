@@ -21,9 +21,13 @@ You are helping one member of a 6-person team build **Earshot** (MSML 650 term p
 
 ## AWS safety (cost and shared environments)
 
-- Deploy **only** to the user's own stage (`STAGE=<their name>`) and only when the user asks.
-- **Never deploy to, modify, or destroy `STAGE=prod`** unless the user explicitly asks and is M6 (or M6 has approved it).
-- If you run `make pipeline-up`, run `make pipeline-down` when the work session ends, and tell the user.
+- Deploy **only when the user asks**, and only to one of these:
+  - the user's own stage (`STAGE=<their name>`) in **their own** AWS account (default profile), or
+  - **`STAGE=prod` in the shared account, following the prod rules in `CONTEXT.md` §5:** from a clean, up-to-date `main` only (`git checkout main && git pull`, nothing uncommitted), with `AWS_PROFILE=earshot-prod` in front of the command, and only after the user has posted in the group chat.
+- **Never deploy a branch to prod.** A deploy replaces prod with exactly the local code, so anything merged that's missing locally gets deleted. Test branches in the user's own stage.
+- Only `STAGE=prod` goes in the shared account: never use `AWS_PROFILE=earshot-prod` with any other stage.
+- Never run `make bootstrap` with `AWS_PROFILE=earshot-prod`. Bootstrapping the shared account is M6's job, done once.
+- If you run `make pipeline-up`, run `make pipeline-down` (same stage, same profile) when the work session ends, and tell the user.
 - Never create resources outside CDK (no console steps, no ad-hoc `aws ... create-*` commands).
 - Never commit secrets, credentials, `.env` files, or `cdk.out/`. Secrets live in SSM SecureString (§9).
 

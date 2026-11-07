@@ -159,6 +159,18 @@ Lambdas: create them with **`common.python_function(...)`**. It sets the name (`
 
 **Stages.** Every member deploys into **their own AWS account** with `stage=<firstname>` (e.g. `stage=priya`). The team integration and demo environment is **one shared account** with `stage=prod`. All accounts: us-east-1.
 
+**Shared `prod` account (set up in M6-02):**
+- **Access:** every member has an IAM user there in group `earshot-team` (PowerUserAccess, plus permission to manage their own access keys). Power users can deploy with CDK but can't change IAM users or account settings. M6 is the admin and runs `make bootstrap` there (once); power users can't create the IAM roles it needs.
+- **Credentials:** a separate AWS CLI profile, `aws configure --profile earshot-prod`. Your default profile stays your own account. Don't store AWS keys as environment variables or Codespaces secrets: some tools use them instead of the profile, and the command hits the wrong account.
+- **Every prod command starts with the profile**, e.g. `AWS_PROFILE=earshot-prod make deploy-base STAGE=prod`.
+
+**Prod rules (everyone):**
+1. **Deploy prod only from a clean, up-to-date `main`** (`git checkout main && git pull`, nothing uncommitted). A deploy replaces prod with exactly your local code, so a branch missing someone's merged work deletes their resources. Test branches in your own stage.
+2. **Post in the group chat** before you deploy prod or run `pipeline-up`/`pipeline-down` on it.
+3. **Whoever runs `make pipeline-up STAGE=prod` runs `make pipeline-down STAGE=prod`** when they're done.
+4. **Only `STAGE=prod` in the shared account.** Each stage adds its own dashboard, alarms and custom metrics, and the account's CloudWatch free tier covers about one stage.
+5. **Nothing by hand in the console.** Everything goes through CDK, so teardown and the cost checks stay reliable. The Makefile refuses `destroy-all` on prod.
+
 **Two stacks per stage:**
 
 | Stack | Name | Lifecycle | Contains |
@@ -484,6 +496,7 @@ Add the newest entry at the top: `YYYY-MM-DD · M<#> · §<section> · what chan
 
 | Date | Who | Section | Change |
 |---|---|---|---|
+| 2026-11-07 | M6 | §5 | M6-02: shared `prod` account set up. **Every member can now deploy prod** (group `earshot-team`: PowerUserAccess + own access keys), through the `earshot-prod` CLI profile and the 5 prod rules. Replaces "only M6 touches prod". Bootstrap stays with M6 |
 | 2026-11-04 | M5 | §9, §10 | M5-01: the Athena workgroup does **not** enforce its configuration. Enforcing would override each query's output location, and the recs job writes under `recs-runs/<run_id>/` (§10). The 1 GB per-query cutoff applies to every query either way |
 | 2026-10-19 | M6 | §0, §3, §12 | Added CI (M6-04): lint, tests and synth on every PR; merge only on ✅. Removed the TRACKER Blockers table (blockers go to the group chat). Node 22+ (20 is EOL). No account IDs/emails in the public repo |
 | 2026-10-19 | M6 | §4, §5 | M6-01 skeleton. **Pipeline now references base by name/ARN, not CDK props** (avoids CloudFormation export locks). `core.py` owns the table, lake bucket, SNS topics and flags param. `services/shared/names.py` is the single source of names. Lambdas use `common.python_function`. Dropped `contracts/event.schema.json` and `api.md` copies (§6/§7 are the contract; copies would drift) |
