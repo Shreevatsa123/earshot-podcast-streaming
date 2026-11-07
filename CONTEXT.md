@@ -178,6 +178,8 @@ Lambdas: create them with **`common.python_function(...)`**. It sets the name (`
 | Base | `earshot-<stage>-base` | **Persistent** (about $0 idle) | DynamoDB table, lake bucket, web bucket + CloudFront, Cognito, HTTP API + all API Lambdas incl. ingest, processor Lambda function (no trigger), recs writer + Step Functions, Glue database + `events` table, Athena workgroup, SNS topics, SQS DLQ, SSM params, dashboard + alarms |
 | Pipeline | `earshot-<stage>-pipeline` | **Ephemeral**: deploy for test or demo, destroy after | Kinesis stream (1 shard, 24 h retention), Kinesis→Lambda event source mapping, Firehose delivery stream, EC2 simulator instance |
 
+A third stack, `earshot-<stage>-servicecheck` (M6-03), exists only while `make service-check` runs: one tiny resource per service, destroyed right after.
+
 **Hard rules:**
 - **Base never references Pipeline objects.** The ingest Lambda finds the stream by its **deterministic name** (§9) and IAM grants use the name-based ARN. If the stream doesn't exist, ingest returns `503 PIPELINE_OFFLINE`.
 - **Pipeline references Base resources by name/ARN from `cfg`** (e.g. `cfg.function_arn("processor")`, `cfg.lake_bucket_arn`, `cfg.processor_dlq_arn`), never through CDK props. That means no CloudFormation exports, so base can be updated while pipeline is deployed, and pipeline can be destroyed anytime. IAM that base resources need for pipeline resources is granted in base on those ARNs (e.g. the processor role's Kinesis read on `cfg.stream_arn`).
@@ -195,6 +197,8 @@ make seed         STAGE=x # loads contracts/samples/catalog.json into DynamoDB
 make pipeline-up  STAGE=x # deploys pipeline stack
 make pipeline-down STAGE=x# destroys pipeline stack
 make destroy-all  STAGE=x # everything (dev stages only)
+make account-check        # Lambda concurrency and EC2 vCPU limits (read-only)
+make service-check STAGE=x# M6-03: deploys one tiny resource per service, then destroys it
 ```
 
 ---
@@ -496,6 +500,7 @@ Add the newest entry at the top: `YYYY-MM-DD · M<#> · §<section> · what chan
 
 | Date | Who | Section | Change |
 |---|---|---|---|
+| 2026-11-07 | M6 | §5 | M6-03: `make service-check` deploys a throwaway `earshot-<stage>-servicecheck` stack (one tiny resource per approved service), prints the account limits, then destroys it; `make account-check` shows the limits alone. `names.STACKS` includes `servicecheck`; `StageConfig.prefix` added |
 | 2026-11-07 | M5 | §10 | M5-03 Athena SQL. Every query in `athena/` takes 4 positional parameters, `dt_from, dt_to, start_ms, end_ms` (`dt_to` = the day after the window, for late arrivals), and never reads the clock. `recs.sql`: seeds are the 2 most recent plays by `server_ts`; "hasn't played" means within the 30-day window; filler has `score` 0; a user's two rows may share an episode. Output, one row per item: `user_id, seed_rank, seed_show_id, seed_episode_id, item_rank, show_id, episode_id, score, source` |
 | 2026-11-07 | M6 | §5 | M6-02: shared `prod` account set up. **Every member can now deploy prod** (group `earshot-team`: PowerUserAccess + own access keys), through the `earshot-prod` CLI profile and the 5 prod rules. Replaces "only M6 touches prod". Bootstrap stays with M6 |
 | 2026-11-04 | M5 | §9, §10 | M5-01: the Athena workgroup does **not** enforce its configuration. Enforcing would override each query's output location, and the recs job writes under `recs-runs/<run_id>/` (§10). The 1 GB per-query cutoff applies to every query either way |
