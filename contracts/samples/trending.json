@@ -1,0 +1,115 @@
+{
+  "date": "2026-11-07",
+  "items": [
+    {
+      "show_id": "7354335",
+      "episode_id": "62894613031",
+      "title": "Jack Bogle: From 12% Returns to a 4% Decade | Stock Market",
+      "show_title": "Deep Values: Value Investing Deep Dives",
+      "image_url": "https://d3t3ozftmdmh3i.cloudfront.net/staging/podcast_uploaded_episode/43755568/43755568-1794065230278-1fa0aa8d689fb.jpg",
+      "audio_url": "https://anchor.fm/s/105664940/podcast/play/128997545/https%3A%2F%2Fd3ctxlq1ktw2nl.cloudfront.net%2Fstaging%2F2026-10-7%2F436152108-44100-2-392d744060c158.mp3",
+      "duration_sec": 1264,
+      "genre": "business",
+      "plays": 478
+    },
+    {
+      "show_id": "7631593",
+      "episode_id": "62885309169",
+      "title": "Legacy of the Thirty Years War: Long-Term Effects",
+      "show_title": "Just Sleep History",
+      "image_url": "https://media.rss.com/just-sleep-history/ep_cover_20260912_100407_fbafcd268ab5ef7b9007d285aefefab3.jpg",
+      "audio_url": "https://content.rss.com/episodes/378714/3144724/just-sleep-history/2026_09_12_10_05_13_87ccc286-9c00-48d7-ae24-6763a7a87ff9.mp3",
+      "duration_sec": 9133,
+      "genre": "history",
+      "plays": 432
+    },
+    {
+      "show_id": "8102509",
+      "episode_id": "62823663483",
+      "title": "Can Humans Live On Other Planets?",
+      "show_title": "LifesBiggestQuestions",
+      "image_url": "https://megaphone.imgix.net/podcasts/55a72a26-be4c-11f1-942f-831f5bf3b6e3/image/0c88549cc37e9662c2aef076cdbca2a9.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+      "audio_url": "https://traffic.megaphone.fm/PODAGEN9389929761.mp3",
+      "duration_sec": 732,
+      "genre": "history",
+      "plays": 339
+    },
+    {
+      "show_id": "793182",
+      "episode_id": "62886979630",
+      "title": "How to build the next wave of clean energy | Jennifer Granholm, Ryan Panchadsaram",
+      "show_title": "TED Talks Daily",
+      "image_url": "https://assets.pippa.io/shows/67587e77c705e441797aff96/show-cover.png",
+      "audio_url": "https://sphinx.acast.com/p/open/s/67587e77c705e441797aff96/e/6aece3957cfe82faa47eb757/media.mp3",
+      "duration_sec": 1152,
+      "genre": "science",
+      "plays": 327
+    },
+    {
+      "show_id": "6962971",
+      "episode_id": "62884368914",
+      "title": "Democrats Seek Accountability",
+      "show_title": "The Weekend",
+      "image_url": "https://image.simplecastcdn.com/images/6849796f-ae40-4c61-8e06-138baa787cd1/b5456069-a229-44b6-a6d9-8478f051a883/3000x3000/ms-20now-20rebrand-theweekend-3000x3000.jpg?aid=rss_feed",
+      "audio_url": "https://dts.podtrac.com/redirect.mp3/injector.simplecastaudio.com/8513eb4d-dd12-47db-bcbd-c1157f2aab0b/episodes/1b283401-22f9-4944-9470-6b3424d548f9/audio/128/default.mp3?aid=rss_feed&awCollectionId=8513eb4d-dd12-47db-bcbd-c1157f2aab0b&awEpisodeId=1b283401-22f9-4944-9470-6b3424d548f9&feed=7Znw4t09",
+      "duration_sec": 2417,
+      "genre": "news",
+      "plays": 228
+    },
+    {
+      "show_id": "5789292",
+      "episode_id": "62884655146",
+      "title": "Wheelchair Wednesday with Micah Black T4 Para",
+      "show_title": "Wheelchair Ric",
+      "image_url": "https://media.rss.com/wheelhouse/ep_cover_20261030_002137_ed7912c384e3c2886179a55f910c8400.png",
+      "audio_url": "https://content.rss.com/episodes/146682/3278438/wheelhouse/2026_10_30_00_05_01_458b542a-479c-4025-af41-c3ea01612c59.mp3",
+      "duration_sec": 1644,
+      "genre": "comedy",
+      "plays": 216
+    },
+    {
+      "show_id": "970238",
+      "episode_id": "62885752786",
+      "title": "11/5/26 Grant F. Smith on Israeli Espionage Operations in the United States",
+      "show_title": "Scott Horton Show - Just the Interviews",
+      "image_url": "https://megaphone.imgix.net/podcasts/cfcff9a4-a62d-11ec-9ad5-3388d66ec854/image/just_interviews_2021.png?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+      "audio_url": "https://traffic.megaphone.fm/SCHM1128160135.mp3",
+      "duration_sec": 3377,
+      "genre": "news",
+      "plays": 162
+    },
+    {
+      "show_id": "8026346",
+      "episode_id": "62886025177",
+      "title": "The Dark Ages of the Cosmos | Crash Course Pods: The Universe #3",
+      "show_title": "CrashCourse",
+      "image_url": "https://megaphone.imgix.net/podcasts/b9f7aa04-a773-11f1-8423-b7fa0f588f8f/image/f8303a3c03e79a9b52c344cca43d731b.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+      "audio_url": "https://traffic.megaphone.fm/HD4280314112.mp3",
+      "duration_sec": 3626,
+      "genre": "science",
+      "plays": 84
+    },
+    {
+      "show_id": "746701",
+      "episode_id": "62893498757",
+      "title": "ep 116: Dream a Little Dream of Dracula",
+      "show_title": "Flight 1080",
+      "image_url": "https://static.libsyn.com/p/assets/4/b/3/8/4b38bc614d0e12e9a04421dee9605cbd/Dream_a_Little_Dream_of_Dracula.png",
+      "audio_url": "https://traffic.libsyn.com/secure/flight1080/ep_116-_Dream_a_Little_Dream_of_Dracula-_V2-_Flight_1080.mp3?dest-id=1707221",
+      "duration_sec": 5983,
+      "genre": "comedy",
+      "plays": 53
+    },
+    {
+      "show_id": "6811018",
+      "episode_id": "62884448962",
+      "title": "Jack's Backyard November 7th, 2026",
+      "show_title": "Jack's Backyard",
+      "image_url": "https://img.transistorcdn.com/0Nnzy-qOWB5Qjjf34VlmOtwlq3-j474JRZ4vF6bSTHg/rs:fill:0:0:1/w:1400/h:1400/q:60/mb:500000/aHR0cHM6Ly9pbWct/dXBsb2FkLXByb2R1/Y3Rpb24udHJhbnNp/c3Rvci5mbS9zaG93/LzQ5ODc3LzE3MDkw/NjUyNTgtYXJ0d29y/ay5qcGc.jpg",
+      "audio_url": "https://media.transistor.fm/d15eda75/c0404ec0.mp3",
+      "duration_sec": 5469,
+      "genre": "science",
+      "plays": 50
+    }
+  ]
+}

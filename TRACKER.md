@@ -17,7 +17,7 @@
 | ID | Role | Name | GitHub | Stage name | Budgets set | Tools installed | Base deployed in own account |
 |---|---|---|---|---|---|---|---|
 | M1 | Frontend & Auth | | | | ☐ | ☐ | ☐ |
-| M2 | API & Catalog | Sankha | SankhaS | `sankha` | ☑ | ☐ | ☐ |
+| M2 | API & Catalog | Sankha | SankhaS | `sankha` | ☑ | ☑ | ☐ |
 | M3 | Ingest & Simulator | | | | ☐ | ☐ | ☐ |
 | M4 | Real-time Processing | | | | ☐ | ☐ | ☐ |
 | M5 | Data Lake & Recommendations | | | | ☐ | ☐ | ☐ |
@@ -87,8 +87,8 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 | M2-04 | API construct: HTTP API, JWT authorizer (both clients), CORS, throttling, routes, `POST /events` → M3 ingest function | M6-01, M1-02 | todo | | |
 | M2-05 | API Lambda: `/health`, `/genres`, `/shows`, `/shows/{id}`, `/progress/{id}`, `/trending` (§7.3) | M2-03, M2-04 | todo | | |
 | M2-06 | `/home` rules 1–6 (§7.4): fallback chain, short-timeout client, 10 s flags cache, sim header, `HomeFallback` metric | M2-05 | todo | | |
-| M2-07 | Commit sample responses `home.json`, `shows.json`, `show_detail.json`, `trending.json`, `progress.json` | M2-01 | todo | | Unblocks M1 |
-| M2-08 | `scripts/set_flag.py` for `recs_enabled` / `recs_fault_injection` | M6-01 | review | [#9](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/9) | `python scripts/set_flag.py --stage <s> [FLAG=true\|false ...] [--reset]`; no arguments = show. Verified in prod: show, flip `recs_fault_injection` on, `--reset` |
+| M2-07 | Commit sample responses `home.json`, `shows.json`, `show_detail.json`, `trending.json`, `progress.json` | M2-01 | doing | | `home.json` (user `sim-000042`: continue, trending, 2 personalized rows) · `shows.json` = `?genre=true-crime` · `show_detail.json` = show `7212041` · `trending.json` (10 items) · `progress.json`. All IDs from `catalog.json`; `tests/unit/test_api_samples.py` checks them against §7 |
+| M2-08 | `scripts/set_flag.py` for `recs_enabled` / `recs_fault_injection` | M6-01 | done | [#9](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/9) | `python scripts/set_flag.py --stage <s> [FLAG=true\|false ...] [--reset]`; no arguments = show. Verified in prod: show, flip `recs_fault_injection` on, `--reset` |
 
 ### M3: Ingest & Simulator
 | ID | Task | Depends on | Status | PR | Notes |

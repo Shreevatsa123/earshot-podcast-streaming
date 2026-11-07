@@ -1,0 +1,378 @@
+{
+  "user_id": "sim-000042",
+  "generated_at": 1794076200000,
+  "degraded": false,
+  "rows": [
+    {
+      "id": "continue",
+      "title": "Continue Listening",
+      "source": "progress",
+      "items": [
+        {
+          "show_id": "8076644",
+          "episode_id": "62885141741",
+          "title": "Principal Component Analysis (PCA) clearly explained (2015)",
+          "show_title": "StatQuest with Josh Starmer",
+          "image_url": "https://megaphone.imgix.net/podcasts/78add660-baef-11f1-b5e3-a708e3291a3c/image/d6f957a069bb18ba11fe185c91b27fb4.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+          "audio_url": "https://traffic.megaphone.fm/PODAGEN9070019466.mp3",
+          "duration_sec": 1620,
+          "genre": "technology",
+          "position_sec": 578
+        },
+        {
+          "show_id": "8081842",
+          "episode_id": "62840815017",
+          "title": "Cuckoo - The British Panther Tank",
+          "show_title": "Mark Felton Productions",
+          "image_url": "https://megaphone.imgix.net/podcasts/bd1469dc-cae3-11f1-9f7c-172843695487/image/745c571f109930ed151c12a2b5f2b778.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+          "audio_url": "https://traffic.megaphone.fm/PODAGEN5772636255.mp3",
+          "duration_sec": 342,
+          "genre": "history",
+          "position_sec": 185
+        },
+        {
+          "show_id": "5789292",
+          "episode_id": "61987731297",
+          "title": "SUBHUNTERS 9-25-2026",
+          "show_title": "Wheelchair Ric",
+          "image_url": "https://media.rss.com/wheelhouse/ep_cover_20260929_185903_6ac2eebd81ec4ab2814e736726dfef86.jpg",
+          "audio_url": "https://content.rss.com/episodes/146682/3194481/wheelhouse/2026_09_29_18_49_44_ef45cc16-7b0a-42cb-bb2f-b207cba459c8.mp3",
+          "duration_sec": 3862,
+          "genre": "comedy",
+          "position_sec": 2472
+        }
+      ]
+    },
+    {
+      "id": "trending",
+      "title": "Trending Now",
+      "source": "trending",
+      "items": [
+        {
+          "show_id": "7354335",
+          "episode_id": "62894613031",
+          "title": "Jack Bogle: From 12% Returns to a 4% Decade | Stock Market",
+          "show_title": "Deep Values: Value Investing Deep Dives",
+          "image_url": "https://d3t3ozftmdmh3i.cloudfront.net/staging/podcast_uploaded_episode/43755568/43755568-1794065230278-1fa0aa8d689fb.jpg",
+          "audio_url": "https://anchor.fm/s/105664940/podcast/play/128997545/https%3A%2F%2Fd3ctxlq1ktw2nl.cloudfront.net%2Fstaging%2F2026-10-7%2F436152108-44100-2-392d744060c158.mp3",
+          "duration_sec": 1264,
+          "genre": "business",
+          "plays": 478
+        },
+        {
+          "show_id": "7631593",
+          "episode_id": "62885309169",
+          "title": "Legacy of the Thirty Years War: Long-Term Effects",
+          "show_title": "Just Sleep History",
+          "image_url": "https://media.rss.com/just-sleep-history/ep_cover_20260912_100407_fbafcd268ab5ef7b9007d285aefefab3.jpg",
+          "audio_url": "https://content.rss.com/episodes/378714/3144724/just-sleep-history/2026_09_12_10_05_13_87ccc286-9c00-48d7-ae24-6763a7a87ff9.mp3",
+          "duration_sec": 9133,
+          "genre": "history",
+          "plays": 432
+        },
+        {
+          "show_id": "8102509",
+          "episode_id": "62823663483",
+          "title": "Can Humans Live On Other Planets?",
+          "show_title": "LifesBiggestQuestions",
+          "image_url": "https://megaphone.imgix.net/podcasts/55a72a26-be4c-11f1-942f-831f5bf3b6e3/image/0c88549cc37e9662c2aef076cdbca2a9.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+          "audio_url": "https://traffic.megaphone.fm/PODAGEN9389929761.mp3",
+          "duration_sec": 732,
+          "genre": "history",
+          "plays": 339
+        },
+        {
+          "show_id": "793182",
+          "episode_id": "62886979630",
+          "title": "How to build the next wave of clean energy | Jennifer Granholm, Ryan Panchadsaram",
+          "show_title": "TED Talks Daily",
+          "image_url": "https://assets.pippa.io/shows/67587e77c705e441797aff96/show-cover.png",
+          "audio_url": "https://sphinx.acast.com/p/open/s/67587e77c705e441797aff96/e/6aece3957cfe82faa47eb757/media.mp3",
+          "duration_sec": 1152,
+          "genre": "science",
+          "plays": 327
+        },
+        {
+          "show_id": "6962971",
+          "episode_id": "62884368914",
+          "title": "Democrats Seek Accountability",
+          "show_title": "The Weekend",
+          "image_url": "https://image.simplecastcdn.com/images/6849796f-ae40-4c61-8e06-138baa787cd1/b5456069-a229-44b6-a6d9-8478f051a883/3000x3000/ms-20now-20rebrand-theweekend-3000x3000.jpg?aid=rss_feed",
+          "audio_url": "https://dts.podtrac.com/redirect.mp3/injector.simplecastaudio.com/8513eb4d-dd12-47db-bcbd-c1157f2aab0b/episodes/1b283401-22f9-4944-9470-6b3424d548f9/audio/128/default.mp3?aid=rss_feed&awCollectionId=8513eb4d-dd12-47db-bcbd-c1157f2aab0b&awEpisodeId=1b283401-22f9-4944-9470-6b3424d548f9&feed=7Znw4t09",
+          "duration_sec": 2417,
+          "genre": "news",
+          "plays": 228
+        },
+        {
+          "show_id": "5789292",
+          "episode_id": "62884655146",
+          "title": "Wheelchair Wednesday with Micah Black T4 Para",
+          "show_title": "Wheelchair Ric",
+          "image_url": "https://media.rss.com/wheelhouse/ep_cover_20261030_002137_ed7912c384e3c2886179a55f910c8400.png",
+          "audio_url": "https://content.rss.com/episodes/146682/3278438/wheelhouse/2026_10_30_00_05_01_458b542a-479c-4025-af41-c3ea01612c59.mp3",
+          "duration_sec": 1644,
+          "genre": "comedy",
+          "plays": 216
+        },
+        {
+          "show_id": "970238",
+          "episode_id": "62885752786",
+          "title": "11/5/26 Grant F. Smith on Israeli Espionage Operations in the United States",
+          "show_title": "Scott Horton Show - Just the Interviews",
+          "image_url": "https://megaphone.imgix.net/podcasts/cfcff9a4-a62d-11ec-9ad5-3388d66ec854/image/just_interviews_2021.png?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+          "audio_url": "https://traffic.megaphone.fm/SCHM1128160135.mp3",
+          "duration_sec": 3377,
+          "genre": "news",
+          "plays": 162
+        },
+        {
+          "show_id": "8026346",
+          "episode_id": "62886025177",
+          "title": "The Dark Ages of the Cosmos | Crash Course Pods: The Universe #3",
+          "show_title": "CrashCourse",
+          "image_url": "https://megaphone.imgix.net/podcasts/b9f7aa04-a773-11f1-8423-b7fa0f588f8f/image/f8303a3c03e79a9b52c344cca43d731b.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+          "audio_url": "https://traffic.megaphone.fm/HD4280314112.mp3",
+          "duration_sec": 3626,
+          "genre": "science",
+          "plays": 84
+        },
+        {
+          "show_id": "746701",
+          "episode_id": "62893498757",
+          "title": "ep 116: Dream a Little Dream of Dracula",
+          "show_title": "Flight 1080",
+          "image_url": "https://static.libsyn.com/p/assets/4/b/3/8/4b38bc614d0e12e9a04421dee9605cbd/Dream_a_Little_Dream_of_Dracula.png",
+          "audio_url": "https://traffic.libsyn.com/secure/flight1080/ep_116-_Dream_a_Little_Dream_of_Dracula-_V2-_Flight_1080.mp3?dest-id=1707221",
+          "duration_sec": 5983,
+          "genre": "comedy",
+          "plays": 53
+        },
+        {
+          "show_id": "6811018",
+          "episode_id": "62884448962",
+          "title": "Jack's Backyard November 7th, 2026",
+          "show_title": "Jack's Backyard",
+          "image_url": "https://img.transistorcdn.com/0Nnzy-qOWB5Qjjf34VlmOtwlq3-j474JRZ4vF6bSTHg/rs:fill:0:0:1/w:1400/h:1400/q:60/mb:500000/aHR0cHM6Ly9pbWct/dXBsb2FkLXByb2R1/Y3Rpb24udHJhbnNp/c3Rvci5mbS9zaG93/LzQ5ODc3LzE3MDkw/NjUyNTgtYXJ0d29y/ay5qcGc.jpg",
+          "audio_url": "https://media.transistor.fm/d15eda75/c0404ec0.mp3",
+          "duration_sec": 5469,
+          "genre": "science",
+          "plays": 50
+        }
+      ]
+    },
+    {
+      "id": "recs-1",
+      "title": "Because you listened to Principal Component Analysis (PCA) clearly explained (2015)",
+      "source": "personalized",
+      "items": [
+        {
+          "show_id": "6766437",
+          "episode_id": "62884929102",
+          "title": "start before you know how.",
+          "show_title": "Jack Hopkins",
+          "image_url": "https://megaphone.imgix.net/podcasts/aa284e2c-b44a-11ee-9a4f-cbc4e14e24c6/image/fd70f622d5af9c4b21876990266f57b1.png?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+          "audio_url": "https://traffic.megaphone.fm/PODAGEN5881056716.mp3?updated=1778656598",
+          "duration_sec": 840,
+          "genre": "technology"
+        },
+        {
+          "show_id": "8085856",
+          "episode_id": "62885358622",
+          "title": "0.5: Processing Examples - Processing Tutorial",
+          "show_title": "The Coding Train",
+          "image_url": "https://megaphone.imgix.net/podcasts/be17d59c-cb26-11f1-94e8-7735a2c31140/image/48cf17d8396927cb26ed6df322edd0df.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+          "audio_url": "https://traffic.megaphone.fm/HD1059390292.mp3",
+          "duration_sec": 1476,
+          "genre": "technology"
+        },
+        {
+          "show_id": "7952735",
+          "episode_id": "61998391901",
+          "title": "Writing Suspense Scenes",
+          "show_title": "Mastering Military Thrillers: A Writers Course",
+          "image_url": "https://www.poddyhost.com/assets/img/covers/11.jpg",
+          "audio_url": "https://www.poddyhost.com/listen/6244.mp3?src=rss",
+          "duration_sec": 205,
+          "genre": "technology"
+        },
+        {
+          "show_id": "7952735",
+          "episode_id": "62333380007",
+          "title": "Action Novel",
+          "show_title": "Mastering Military Thrillers: A Writers Course",
+          "image_url": "https://www.poddyhost.com/assets/img/covers/11.jpg",
+          "audio_url": "https://www.poddyhost.com/listen/6246.mp3?src=rss",
+          "duration_sec": 227,
+          "genre": "technology"
+        },
+        {
+          "show_id": "6766437",
+          "episode_id": "62884929103",
+          "title": "how to COMPLETELY change your life in one year... | JACK HOPKINS",
+          "show_title": "Jack Hopkins",
+          "image_url": "https://megaphone.imgix.net/podcasts/ee739eb4-4eb0-11ef-9d4a-3beb2eea0cbc/image/e8eb0c99896a3c9a4f7b8eac5e1b384f.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+          "audio_url": "https://traffic.megaphone.fm/PODAGEN6983644436.mp3?updated=1778656706",
+          "duration_sec": 2164,
+          "genre": "technology"
+        },
+        {
+          "show_id": "8076644",
+          "episode_id": "62885141743",
+          "title": "The Main Ideas of Fitting a Line to Data (The Main Ideas of Least Squares and Linear Regression.)",
+          "show_title": "StatQuest with Josh Starmer",
+          "image_url": "https://megaphone.imgix.net/podcasts/236ec248-bbd7-11f1-be2b-077061da5784/image/f07e7e11c375c679ace5bf4eac429d39.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+          "audio_url": "https://traffic.megaphone.fm/PODAGEN8721533621.mp3",
+          "duration_sec": 786,
+          "genre": "technology"
+        },
+        {
+          "show_id": "6894318",
+          "episode_id": "62884767541",
+          "title": "Get your business flow right | Hamza Selfimprovement",
+          "show_title": "Hamza Selfimprovement",
+          "image_url": "https://megaphone.imgix.net/podcasts/44120394-0567-11ef-be5e-17ac05572f40/image/5487dff2ad66110d83905e32ac86348e.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+          "audio_url": "https://traffic.megaphone.fm/PODAGEN5482077379.mp3?updated=1778654518",
+          "duration_sec": 261,
+          "genre": "technology"
+        },
+        {
+          "show_id": "7952735",
+          "episode_id": "61998391902",
+          "title": "Writing Suspense Scenes",
+          "show_title": "Mastering Military Thrillers: A Writers Course",
+          "image_url": "https://www.poddyhost.com/assets/img/covers/11.jpg",
+          "audio_url": "https://www.poddyhost.com/listen/6245.mp3?src=rss",
+          "duration_sec": 220,
+          "genre": "technology"
+        },
+        {
+          "show_id": "6894318",
+          "episode_id": "62884767544",
+          "title": "Make Her Miss You",
+          "show_title": "Hamza Selfimprovement",
+          "image_url": "https://megaphone.imgix.net/podcasts/ff2cc844-4f31-11ef-9b1f-6fc5c5ba8f3c/image/d986db26abd1447df5584dc05be41514.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+          "audio_url": "https://traffic.megaphone.fm/PODAGEN2075930548.mp3?updated=1778655173",
+          "duration_sec": 497,
+          "genre": "technology"
+        },
+        {
+          "show_id": "8085856",
+          "episode_id": "62885358621",
+          "title": "What's next?",
+          "show_title": "The Coding Train",
+          "image_url": "https://megaphone.imgix.net/podcasts/d8efc672-cb26-11f1-94f4-2f229b199e63/image/f674619a68d14ba0dfecd55e8a14505f.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+          "audio_url": "https://traffic.megaphone.fm/HD7833001277.mp3",
+          "duration_sec": 729,
+          "genre": "technology"
+        }
+      ]
+    },
+    {
+      "id": "recs-2",
+      "title": "Because you listened to Cuckoo - The British Panther Tank",
+      "source": "personalized",
+      "items": [
+        {
+          "show_id": "8081842",
+          "episode_id": "62840815018",
+          "title": "Hitler's Tibetan Troops",
+          "show_title": "Mark Felton Productions",
+          "image_url": "https://megaphone.imgix.net/podcasts/70b7bd60-caec-11f1-93ba-d3fdbf27edf7/image/5f1f97709a705ad156c707fa581dd7ae.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+          "audio_url": "https://traffic.megaphone.fm/PODAGEN5934041244.mp3",
+          "duration_sec": 708,
+          "genre": "history"
+        },
+        {
+          "show_id": "8102509",
+          "episode_id": "62823663487",
+          "title": "Are Ghosts Real? - Shocking Answers",
+          "show_title": "LifesBiggestQuestions",
+          "image_url": "https://megaphone.imgix.net/podcasts/5c450234-be49-11f1-8f20-230e671ac33b/image/fa551499fe35cf1ccae09f10949a1276.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+          "audio_url": "https://traffic.megaphone.fm/PODAGEN2494860776.mp3",
+          "duration_sec": 849,
+          "genre": "history"
+        },
+        {
+          "show_id": "7614989",
+          "episode_id": "62739405373",
+          "title": "Challenges Faced by Typical Travelers in Medieval Europe",
+          "show_title": "Sleep Documentaries",
+          "image_url": "https://media.rss.com/sleep-documentaries/ep_cover_20260912_085006_fb65f7764211d32c8eb8d69cb3c0db73.jpg",
+          "audio_url": "https://content.rss.com/episodes/378710/3144650/sleep-documentaries/2026_09_12_08_51_45_c2256df1-8120-46ec-8f73-946a8e83f1d4.mp3",
+          "duration_sec": 12128,
+          "genre": "history"
+        },
+        {
+          "show_id": "7631593",
+          "episode_id": "62838088783",
+          "title": "Ancient Rome's Teachers: Shaping Young Minds",
+          "show_title": "Just Sleep History",
+          "image_url": "https://media.rss.com/just-sleep-history/ep_cover_20260912_094205_523e04e6aa20a58861d315abbd3a7b82.jpg",
+          "audio_url": "https://content.rss.com/episodes/378714/3144701/just-sleep-history/2026_09_12_09_43_55_df3cb7b5-b6cd-4d66-994b-fae1b20e06db.mp3",
+          "duration_sec": 8577,
+          "genre": "history"
+        },
+        {
+          "show_id": "7618583",
+          "episode_id": "62739370463",
+          "title": "The Hardship of Medieval Journeys for the Common Folk",
+          "show_title": "Calming History",
+          "image_url": "https://media.rss.com/calm-history/ep_cover_20260912_085205_122f9fdb2395c87ba156c773fb41cc71.png",
+          "audio_url": "https://content.rss.com/episodes/378701/3144653/calm-history/2026_09_12_08_53_42_4c9216d9-232d-4978-a690-c2db646dfbb8.mp3",
+          "duration_sec": 12128,
+          "genre": "history"
+        },
+        {
+          "show_id": "8102509",
+          "episode_id": "62823663488",
+          "title": "How Were The Pyramids Of Egypt Built?",
+          "show_title": "LifesBiggestQuestions",
+          "image_url": "https://megaphone.imgix.net/podcasts/34e23318-be55-11f1-ab2d-4f4efbdc6d63/image/f69333384567be6057ab00b6c299d6ef.jpg?ixlib=rails-4.3.1&max-w=3000&max-h=3000&fit=crop&auto=format,compress",
+          "audio_url": "https://traffic.megaphone.fm/PODAGEN7200538939.mp3",
+          "duration_sec": 505,
+          "genre": "history"
+        },
+        {
+          "show_id": "7618583",
+          "episode_id": "62838087926",
+          "title": "School Days in Ancient Rome: A Look at Education",
+          "show_title": "Calming History",
+          "image_url": "https://media.rss.com/calm-history/ep_cover_20260912_094006_6f538e3a709fd3fc4a4e4485390a3928.png",
+          "audio_url": "https://content.rss.com/episodes/378701/3144698/calm-history/2026_09_12_09_41_16_54145a50-3394-4504-b108-3774403b86c5.mp3",
+          "duration_sec": 8577,
+          "genre": "history"
+        },
+        {
+          "show_id": "7631593",
+          "episode_id": "62885309169",
+          "title": "Legacy of the Thirty Years War: Long-Term Effects",
+          "show_title": "Just Sleep History",
+          "image_url": "https://media.rss.com/just-sleep-history/ep_cover_20260912_100407_fbafcd268ab5ef7b9007d285aefefab3.jpg",
+          "audio_url": "https://content.rss.com/episodes/378714/3144724/just-sleep-history/2026_09_12_10_05_13_87ccc286-9c00-48d7-ae24-6763a7a87ff9.mp3",
+          "duration_sec": 9133,
+          "genre": "history"
+        },
+        {
+          "show_id": "160748",
+          "episode_id": "62884764065",
+          "title": "Agents of Inertia: Business, Urban Crisis, and Economic Decline in Twentieth-Century Calcutta with Gaurav C. Garg (Cambridge UP, 2026)",
+          "show_title": "New Books in History",
+          "image_url": "https://image.simplecastcdn.com/images/e888e3bb-564c-4878-a3b7-093e7ea1bf19/7d09cee5-413e-4578-910f-0e8a069d7449/3000x3000/6997b2fe61dc73a9d4ffd37b9e862b62.png?aid=rss_feed",
+          "audio_url": "https://injector.simplecastaudio.com/e888e3bb-564c-4878-a3b7-093e7ea1bf19/episodes/f486226b-598c-4137-8076-1f8920b023f5/audio/128/default.mp3?aid=rss_feed&awCollectionId=e888e3bb-564c-4878-a3b7-093e7ea1bf19&awEpisodeId=f486226b-598c-4137-8076-1f8920b023f5&awSourceEpisodeId=c762aada-b7d5-4f6c-a06c-d476ed9798af&feed=f8VZJ2I_",
+          "duration_sec": 4170,
+          "genre": "history"
+        },
+        {
+          "show_id": "7618583",
+          "episode_id": "62788013944",
+          "title": "Carthaginian Daily Life: Struggles and Survival",
+          "show_title": "Calming History",
+          "image_url": "https://media.rss.com/calm-history/ep_cover_20260912_092407_cf8964240ef0681225ac40f18e923411.png",
+          "audio_url": "https://content.rss.com/episodes/378701/3144683/calm-history/2026_09_12_09_25_26_145a807c-29a0-4d93-b000-e3102056b310.mp3",
+          "duration_sec": 9913,
+          "genre": "history"
+        }
+      ]
+    }
+  ]
+}
