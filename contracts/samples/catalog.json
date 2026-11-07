@@ -10016,5 +10016,87 @@
       "image_url": "https://media.rss.com/just-sleep-history/ep_cover_20260911_230008_e2635f646a782d59d04611ea01b5e279.jpg",
       "genre": "history"
     }
+  ],
+  "featured": [
+    {
+      "show_id": "7212041",
+      "episode_id": "62891327220"
+    },
+    {
+      "show_id": "5840426",
+      "episode_id": "62887338439"
+    },
+    {
+      "show_id": "6403424",
+      "episode_id": "62891781395"
+    },
+    {
+      "show_id": "746701",
+      "episode_id": "60886120866"
+    },
+    {
+      "show_id": "6962971",
+      "episode_id": "62884368914"
+    },
+    {
+      "show_id": "7563798",
+      "episode_id": "62884857249"
+    },
+    {
+      "show_id": "8076644",
+      "episode_id": "62885141740"
+    },
+    {
+      "show_id": "8085856",
+      "episode_id": "62885358617"
+    },
+    {
+      "show_id": "8054364",
+      "episode_id": "62884917974"
+    },
+    {
+      "show_id": "4265170",
+      "episode_id": "62888446312"
+    },
+    {
+      "show_id": "7784710",
+      "episode_id": "62848965604"
+    },
+    {
+      "show_id": "7354335",
+      "episode_id": "62894613031"
+    },
+    {
+      "show_id": "793182",
+      "episode_id": "62886979630"
+    },
+    {
+      "show_id": "8026346",
+      "episode_id": "62886025178"
+    },
+    {
+      "show_id": "8075719",
+      "episode_id": "62886161938"
+    },
+    {
+      "show_id": "1957898",
+      "episode_id": "62884643397"
+    },
+    {
+      "show_id": "483241",
+      "episode_id": "62890500201"
+    },
+    {
+      "show_id": "8081842",
+      "episode_id": "62840815017"
+    },
+    {
+      "show_id": "160748",
+      "episode_id": "62871115651"
+    },
+    {
+      "show_id": "7618583",
+      "episode_id": "62885306683"
+    }
   ]
 }
