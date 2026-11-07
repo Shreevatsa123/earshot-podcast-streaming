@@ -88,7 +88,7 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 | M2-05 | API Lambda: `/health`, `/genres`, `/shows`, `/shows/{id}`, `/progress/{id}`, `/trending` (§7.3) | M2-03, M2-04 | todo | | |
 | M2-06 | `/home` rules 1–6 (§7.4): fallback chain, short-timeout client, 10 s flags cache, sim header, `HomeFallback` metric | M2-05 | todo | | |
 | M2-07 | Commit sample responses `home.json`, `shows.json`, `show_detail.json`, `trending.json`, `progress.json` | M2-01 | todo | | Unblocks M1 |
-| M2-08 | `scripts/set_flag.py` for `recs_enabled` / `recs_fault_injection` | M6-01 | doing | | `python scripts/set_flag.py --stage <s> [FLAG=true\|false ...] [--reset]`; no arguments = show. Verified in prod: show, flip `recs_fault_injection` on, `--reset` |
+| M2-08 | `scripts/set_flag.py` for `recs_enabled` / `recs_fault_injection` | M6-01 | review | [#9](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/9) | `python scripts/set_flag.py --stage <s> [FLAG=true\|false ...] [--reset]`; no arguments = show. Verified in prod: show, flip `recs_fault_injection` on, `--reset` |
 
 ### M3: Ingest & Simulator
 | ID | Task | Depends on | Status | PR | Notes |
