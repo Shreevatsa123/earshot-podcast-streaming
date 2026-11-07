@@ -16,14 +16,16 @@ CDK ?= cdk
 CDK_CONTEXT := -c stage=$(STAGE) $(if $(ALERT_EMAIL),-c alert_email=$(ALERT_EMAIL))
 BASE_STACK := earshot-$(STAGE)-base
 PIPELINE_STACK := earshot-$(STAGE)-pipeline
+CHECK_STACK := earshot-$(STAGE)-servicecheck
 
 # Lets scripts import shared.names and earshot_infra.config.
 export PYTHONPATH := $(CURDIR)/services:$(CURDIR)/infra
 
-.PHONY: help install lint test synth diff bootstrap deploy-base seed pipeline-up pipeline-down destroy-all check-stage
+.PHONY: help install lint test synth diff bootstrap deploy-base seed pipeline-up pipeline-down destroy-all \
+	account-check service-check service-check-down check-stage
 
 help: ## Show this list
-	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-14s %s\n", $$1, $$2}'
+	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-19s %s\n", $$1, $$2}'
 
 install: ## Install Python dependencies into the active venv
 	$(PY) -m pip install -r requirements-dev.txt
@@ -61,6 +63,23 @@ pipeline-down: check-stage ## Destroy the pipeline stack (after every session)
 destroy-all: check-stage ## Destroy both stacks (dev stages only, never prod)
 	@if [ "$(STAGE)" = "prod" ]; then echo "Refusing to destroy prod."; exit 1; fi
 	cd infra && $(CDK) destroy --all $(CDK_CONTEXT) --force
+
+account-check: ## Show the Lambda and EC2 limits that can block Earshot (read-only)
+	$(PY) scripts/account_check.py
+
+service-check: check-stage ## M6-03: deploy 1 tiny resource per service, show limits, destroy (15-30 min)
+	@echo ">>> Deploying $(CHECK_STACK). CloudFront is slow to create and delete, so this takes 15-30 minutes."
+	@cd infra && $(CDK) deploy $(CHECK_STACK) $(CDK_CONTEXT) -c servicecheck=true --require-approval never; \
+	deploy_status=$$?; \
+	$(PY) $(CURDIR)/scripts/account_check.py; \
+	echo ">>> Destroying $(CHECK_STACK) (parts of it bill by the hour)"; \
+	$(CDK) destroy $(CHECK_STACK) $(CDK_CONTEXT) -c servicecheck=true --force; \
+	if [ $$deploy_status -eq 0 ]; then echo ">>> SERVICE CHECK PASSED: the account allows every service."; \
+	else echo ">>> SERVICE CHECK FAILED: the CloudFormation error above names the resource (= service) that was blocked."; fi; \
+	exit $$deploy_status
+
+service-check-down: check-stage ## Destroy a leftover service-check stack
+	cd infra && $(CDK) destroy $(CHECK_STACK) $(CDK_CONTEXT) -c servicecheck=true --force
 
 check-stage:
 	@if [ -z "$(STAGE)" ]; then echo "Set STAGE to your stage name, e.g.: make $(firstword $(MAKECMDGOALS)) STAGE=priya"; exit 1; fi

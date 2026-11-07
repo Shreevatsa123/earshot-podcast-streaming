@@ -2,8 +2,9 @@
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# Lambda code imports "shared.*"; infra code imports "earshot_infra.*".
-pythonpath = ["services", "infra"]
+# Lambda code imports "shared.*"; infra code imports "earshot_infra.*"; scripts/ holds
+# the account and cost checks.
+pythonpath = ["services", "infra", "scripts"]
 addopts = "-q --import-mode=importlib"
 
 [tool.ruff]
@@ -15,4 +16,4 @@ select = ["F", "E9", "B", "I", "UP"]
 ignore = ["UP017"]  # datetime.timezone.utc is fine
 
 [tool.ruff.lint.isort]
-known-first-party = ["shared", "earshot_infra", "api", "ingest", "processor", "recs_writer"]
+known-first-party = ["shared", "earshot_infra", "api", "ingest", "processor", "recs_writer", "account_check"]

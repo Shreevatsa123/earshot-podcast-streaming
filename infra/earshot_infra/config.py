@@ -58,6 +58,11 @@ class StageConfig:
 
     # ---- Names (CONTEXT §9) ------------------------------------------------------------
 
+    @property
+    def prefix(self) -> str:
+        """``earshot-<stage>``: the start of most resource names."""
+        return names.prefix(self.stage)
+
     def stack_name(self, kind: str) -> str:
         return names.stack_name(self.stage, kind)
 

@@ -32,7 +32,8 @@ GENRES: dict[str, str] = {
 
 #: Short names of the four Lambda functions (CONTEXT §9).
 FUNCTIONS = ("api", "ingest", "processor", "recs-writer")
-STACKS = ("base", "pipeline")
+#: base and pipeline (CONTEXT §5), plus M6's throwaway service-check stack (M6-03).
+STACKS = ("base", "pipeline", "servicecheck")
 
 GLUE_TABLE = "events"
 
