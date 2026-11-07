@@ -1,0 +1,52 @@
+{
+  "shows": [
+    {
+      "show_id": "5650841",
+      "title": "Hidden Killers Live! Daily True Crime News & Breakdowns",
+      "author": "Hidden Killers Podcast",
+      "image_url": "https://audioboom.com/i/43725450.jpg",
+      "genre": "true-crime",
+      "episode_count": 20
+    },
+    {
+      "show_id": "5840426",
+      "title": "Hidden Killers With Tony Brueski | True Crime News & Commentary",
+      "author": "True Crime Today",
+      "image_url": "https://audioboom.com/i/43617911.jpg",
+      "genre": "true-crime",
+      "episode_count": 20
+    },
+    {
+      "show_id": "6952892",
+      "title": "Horrifying True Crime Stories",
+      "author": "Peter Zahr",
+      "image_url": "https://d3wo5wojvuv7l.cloudfront.net/t_rss_itunes_square_1400/images.spreaker.com/original/9c390d03bd02cf6b0819d0106a75cd39.jpg",
+      "genre": "true-crime",
+      "episode_count": 20
+    },
+    {
+      "show_id": "7212041",
+      "title": "Ray William Johnson: True Story Podcast",
+      "author": "Ray William Johnson",
+      "image_url": "https://d3t3ozftmdmh3i.cloudfront.net/staging/podcast_uploaded_nologo/42926276/42926276-1738116833217-5a66d821dfbef.jpg",
+      "genre": "true-crime",
+      "episode_count": 20
+    },
+    {
+      "show_id": "7399986",
+      "title": "Serial Killers: The True Crime Stories",
+      "author": "Peter Debra",
+      "image_url": "https://d3wo5wojvuv7l.cloudfront.net/t_rss_itunes_square_1400/images.spreaker.com/original/cc5cac560f993f99998a63b029a553a8.jpg",
+      "genre": "true-crime",
+      "episode_count": 20
+    },
+    {
+      "show_id": "7471043",
+      "title": "True Crime Investigation",
+      "author": "Manuel",
+      "image_url": "https://d3wo5wojvuv7l.cloudfront.net/t_rss_itunes_square_1400/images.spreaker.com/original/b89ba24b9467e2029a40522d09f80628.jpg",
+      "genre": "true-crime",
+      "episode_count": 20
+    }
+  ]
+}
