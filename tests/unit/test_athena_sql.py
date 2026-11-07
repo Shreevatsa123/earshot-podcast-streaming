@@ -280,3 +280,167 @@ def test_reconcile_follows_server_ts_across_midnight(tmp_path):
         ],
     )
     assert plays(run_query(tmp_path, "reconcile_trending", DAY)) == [("late-today", 1)]
+
+
+# ---- recs.sql -----------------------------------------------------------------------------
+
+# The recs job's 30-day window ending 2026-11-03 00:00 UTC.
+MONTH = ["2026-10-04", "2026-11-03", ms("2026-10-04T00:00:00"), ms("2026-11-03T00:00:00")]
+MINUTE = 60_000
+T0 = ms("2026-11-02T10:00:00")
+
+
+def play(user: str, episode: str, minute: int = 0, genre: str = "true-crime", **fields: Any) -> dict[str, Any]:
+    """A play of ``episode`` by ``user`` at T0 + ``minute``; each episode is its own show."""
+    defaults = {"show_id": f"show-{episode}", "genre": genre, "server_ts": T0 + minute * MINUTE}
+    return event(user_id=user, episode_id=episode, **{**defaults, **fields})
+
+
+def crowd(episode: str, listeners: int, genre: str) -> list[dict[str, Any]]:
+    """``listeners`` different one-off users playing ``episode``: popularity without co-listening."""
+    return [play(f"crowd-{episode}-{n}", episode, genre=genre) for n in range(listeners)]
+
+
+def recs(root: Path) -> list[dict[str, Any]]:
+    return run_query(root, "recs", MONTH)
+
+
+def row(rows: list[dict[str, Any]], user: str, seed_rank: int) -> list[tuple[str, int, str]]:
+    """One "Because you listened to" row as (episode_id, score, source), checking item_rank is 1..n."""
+    items = [r for r in rows if r["user_id"] == user and r["seed_rank"] == seed_rank]
+    assert [r["item_rank"] for r in items] == list(range(1, len(items) + 1))
+    return [(r["episode_id"], r["score"], r["source"]) for r in items]
+
+
+def seeds(rows: list[dict[str, Any]], user: str) -> list[str]:
+    return [r["seed_episode_id"] for r in rows if r["user_id"] == user and r["item_rank"] == 1]
+
+
+def test_recs_only_for_users_with_3_distinct_plays(tmp_path):
+    write_lake(
+        tmp_path,
+        [
+            play("two", "a1", 1),
+            play("two", "a2", 2),
+            play("two", "a2", 3),  # a replay isn't a third episode
+            play("three", "a1", 1),
+            play("three", "a2", 2),
+            play("three", "a3", 3),
+            play("other", "a4", 4),  # gives "three" something unplayed in the genre
+        ],
+    )
+    assert {r["user_id"] for r in recs(tmp_path)} == {"three"}
+
+
+def test_recs_ignore_non_plays_and_plays_outside_the_window(tmp_path):
+    write_lake(
+        tmp_path,
+        [
+            play("u1", "w1", 1),
+            play("u1", "w2", 2),
+            play("u1", "w3", 3, event_type="pause"),
+            play("u1", "w4", server_ts=MONTH[2] - 1),  # just before the window
+            play("other", "w5", 5),
+        ],
+    )
+    assert recs(tmp_path) == []
+
+
+def test_recs_seeds_are_the_two_most_recent_episodes(tmp_path):
+    write_lake(
+        tmp_path,
+        [
+            play("u1", "b1", 1),
+            play("u1", "b2", 2),
+            play("u1", "b3", 3),
+            play("u1", "b1", 10),  # replaying b1 makes it the most recent
+            play("u2", "c3", 5),  # three episodes at the same minute: ties go to the lower id
+            play("u2", "c1", 5),
+            play("u2", "c2", 5),
+            play("other", "z1", 0),
+        ],
+    )
+    rows = recs(tmp_path)
+    assert seeds(rows, "u1") == ["b1", "b3"]
+    assert seeds(rows, "u2") == ["c1", "c2"]
+
+
+def test_recs_rank_co_listened_episodes_the_user_has_not_played(tmp_path):
+    co_genre = "comedy"  # different from the seeds' genre, so no filler joins the row
+    duplicate = play("u4", "x3", genre=co_genre)
+    write_lake(
+        tmp_path,
+        [
+            play("u1", "e1", 1),
+            play("u1", "e2", 2),
+            play("u1", "e3", 3),
+            play("u2", "e3"),
+            play("u2", "x1", genre=co_genre),
+            play("u2", "x2", genre=co_genre),
+            play("u3", "e3"),
+            play("u3", "x1", genre=co_genre),
+            play("u4", "e3"),
+            play("u4", "x2", genre=co_genre),
+            duplicate,
+            dict(duplicate),  # a duplicate event and replays count u4 once for x3
+            play("u4", "x3", 30, genre=co_genre),
+            play("u5", "x3", genre=co_genre),  # never played e3: not a co-listener
+        ],
+    )
+    rows = recs(tmp_path)
+    # Seed e3: x1 and x2 have 2 co-listeners each (tie -> lower id first), x3 has 1.
+    # e1 and e2 were co-played too, but u1 already played them.
+    assert row(rows, "u1", 1) == [("x1", 2, "co"), ("x2", 2, "co"), ("x3", 1, "co")]
+    # Seed e2: only u1 played it and every true-crime episode is played: no row at all.
+    assert row(rows, "u1", 2) == []
+
+
+def test_recs_keep_at_most_10_picks_per_seed(tmp_path):
+    events = [play("u1", "k1", 1), play("u1", "k2", 2), play("u1", "k0", 3)]
+    for n in range(1, 13):  # 12 one-co-listener candidates for seed k0
+        events += [play(f"fan-{n}", "k0"), play(f"fan-{n}", f"y{n:02d}", genre="comedy")]
+    write_lake(tmp_path, events)
+    assert row(recs(tmp_path), "u1", 1) == [(f"y{n:02d}", 1, "co") for n in range(1, 11)]
+
+
+def test_recs_fill_from_the_seed_genre_by_popularity(tmp_path):
+    events = [play("u1", "s1", 1, genre="news"), play("u1", "s2", 2, genre="news")]
+    events += [play("u1", "s3", 3, genre="news"), play("u1", "n01", 4, genre="news")]
+    for n in range(1, 13):  # n01 is the most played, n12 the least
+        events += crowd(f"n{n:02d}", 13 - n, genre="news")
+    events += crowd("loud", 50, genre="comedy")  # popular, but the wrong genre
+    write_lake(tmp_path, events)
+    rows = recs(tmp_path)
+    # Most recent seed is n01 (played last). Nobody else played the seeds: all filler.
+    # n01 and s1-s3 are played, so filler is n02..n11; n12 doesn't fit in 10.
+    assert seeds(rows, "u1") == ["n01", "s3"]
+    assert row(rows, "u1", 1) == [(f"n{n:02d}", 0, "genre") for n in range(2, 12)]
+
+
+def test_recs_filler_continues_after_picks_without_repeating_them(tmp_path):
+    events = [play("u1", "m1", 1, genre="science"), play("u1", "m2", 2, genre="science")]
+    events += [play("u1", "m3", 3, genre="science")]
+    events += [play("u2", "m3", genre="science"), play("u2", "p1", genre="science")]
+    events += crowd("p1", 5, "science") + crowd("p2", 3, "science") + crowd("p3", 1, "science")
+    write_lake(tmp_path, events)
+    # p1 is a pick (u2 played m3 and p1); filler follows by popularity and skips p1.
+    assert row(recs(tmp_path), "u1", 1) == [("p1", 1, "co"), ("p2", 0, "genre"), ("p3", 0, "genre")]
+
+
+def test_recs_output_columns_and_show_ids(tmp_path):
+    write_lake(
+        tmp_path,
+        [play("u1", "e1", 1), play("u1", "e2", 2), play("u1", "e3", 3), play("u2", "e3"), play("u2", "x1")],
+    )
+    first = recs(tmp_path)[0]
+    assert first == {
+        "user_id": "u1",
+        "seed_rank": 1,
+        "seed_show_id": "show-e3",
+        "seed_episode_id": "e3",
+        "item_rank": 1,
+        "show_id": "show-x1",
+        "episode_id": "x1",
+        "score": 1,
+        "source": "co",
+    }
