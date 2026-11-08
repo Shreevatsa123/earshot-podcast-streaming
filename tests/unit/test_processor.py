@@ -1,8 +1,8 @@
-import base64
 import json
 
 import boto3
 import pytest
+from botocore.exceptions import ClientError
 from moto import mock_aws
 
 from processor import handler
@@ -52,13 +52,8 @@ def playback_event(
     }
 
 
-def kinesis_record(event: dict[str, object], sequence_number: str) -> dict[str, object]:
-    encoded = base64.b64encode(json.dumps(event).encode("utf-8")).decode("ascii")
-    return {
-        "kinesis": {"data": encoded, "sequenceNumber": sequence_number},
-        "eventSource": "aws:kinesis",
-        "eventID": f"shardId-000000000000:{sequence_number}",
-    }
+def sqs_record(events: list[object], message_id: str) -> dict[str, str]:
+    return {"messageId": message_id, "body": json.dumps({"events": events})}
 
 
 def test_main_keeps_newest_progress_when_events_arrive_out_of_order(
@@ -70,7 +65,7 @@ def test_main_keeps_newest_progress_when_events_arrive_out_of_order(
     older = playback_event(client_ts=1_793_548_801_100, position_sec=40)
 
     result = handler.main(
-        {"Records": [kinesis_record(newer, "2"), kinesis_record(older, "1")]},
+        {"Records": [sqs_record([newer], "newer"), sqs_record([older], "older")]},
         context=None,
     )
 
@@ -109,8 +104,85 @@ def test_update_progress_sets_completion_status(
     assert item["updated_at"] == 1_793_548_801_312
 
 
-def test_decode_kinesis_record_requires_json_object():
-    encoded = base64.b64encode(b"[]").decode("ascii")
+@pytest.mark.parametrize(
+    "body",
+    ["not JSON", json.dumps({"payload": []}), json.dumps({"events": {}})],
+)
+def test_decode_sqs_message_requires_an_events_array(body):
+    with pytest.raises(ValueError, match="SQS message body"):
+        handler.decode_sqs_message({"body": body})
 
-    with pytest.raises(ValueError, match="JSON object"):
-        handler.decode_kinesis_record({"kinesis": {"data": encoded}})
+
+def test_main_skips_malformed_messages_and_events(progress_table, monkeypatch, capsys):
+    monkeypatch.setenv("TABLE_NAME", "earshot-test-main")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    valid = playback_event(client_ts=1_793_548_801_200, position_sec=80)
+
+    result = handler.main(
+        {
+            "Records": [
+                {"messageId": "malformed", "body": "not JSON"},
+                sqs_record([[], valid], "mixed"),
+            ]
+        },
+        context=None,
+    )
+
+    item = progress_table.get_item(
+        Key={"PK": "USER#sim-000042", "SK": "PROG#16795090"}
+    )["Item"]
+    assert result == {"batchItemFailures": []}
+    assert item["position_sec"] == 80
+    batch_log = json.loads(capsys.readouterr().out.splitlines()[0])
+    assert batch_log["malformed_messages"] == 1
+    assert batch_log["malformed_events"] == 1
+
+
+def test_main_reports_transient_failure_by_sqs_message_id(monkeypatch):
+    monkeypatch.setenv("TABLE_NAME", "earshot-test-main")
+    event = playback_event(client_ts=1_793_548_801_200, position_sec=80)
+    error = ClientError(
+        {
+            "Error": {
+                "Code": "ProvisionedThroughputExceededException",
+                "Message": "Retry the request",
+            }
+        },
+        "UpdateItem",
+    )
+
+    class FailingTable:
+        def update_item(self, **kwargs):
+            raise error
+
+    class FakeDynamoDB:
+        def Table(self, name):
+            return FailingTable()
+
+    monkeypatch.setattr(handler.boto3, "resource", lambda service: FakeDynamoDB())
+
+    result = handler.main({"Records": [sqs_record([event], "retry-this-message")]}, context=None)
+
+    assert result == {"batchItemFailures": [{"itemIdentifier": "retry-this-message"}]}
+
+
+def test_main_surfaces_non_retryable_aws_errors(monkeypatch):
+    monkeypatch.setenv("TABLE_NAME", "earshot-test-main")
+    event = playback_event(client_ts=1_793_548_801_200, position_sec=80)
+    error = ClientError(
+        {"Error": {"Code": "ValidationException", "Message": "Invalid request"}},
+        "UpdateItem",
+    )
+
+    class FailingTable:
+        def update_item(self, **kwargs):
+            raise error
+
+    class FakeDynamoDB:
+        def Table(self, name):
+            return FailingTable()
+
+    monkeypatch.setattr(handler.boto3, "resource", lambda service: FakeDynamoDB())
+
+    with pytest.raises(ClientError, match="Invalid request"):
+        handler.main({"Records": [sqs_record([event], "invalid-request")]}, context=None)
