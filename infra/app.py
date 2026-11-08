@@ -15,6 +15,7 @@ import aws_cdk as cdk
 from earshot_infra.config import PLACEHOLDER_ACCOUNT, StageConfig
 from earshot_infra.stacks.base_stack import BaseStack
 from earshot_infra.stacks.pipeline_stack import PipelineStack
+from earshot_infra.stacks.service_check_stack import ServiceCheckStack
 
 
 def main() -> None:
@@ -58,6 +59,15 @@ def main() -> None:
         env=env,
         description=f"Earshot {cfg.stage}: hourly-billed pipeline (tear down after use)",
     )
+    # Only with -c servicecheck=true (make service-check), so normal deploys never see it.
+    if str(app.node.try_get_context("servicecheck")).lower() == "true":
+        ServiceCheckStack(
+            app,
+            cfg.stack_name("servicecheck"),
+            cfg=cfg,
+            env=env,
+            description=f"Earshot {cfg.stage}: throwaway service check (M6-03), destroyed right after",
+        )
     app.synth()
 
 

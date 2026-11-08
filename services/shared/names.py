@@ -32,7 +32,11 @@ GENRES: dict[str, str] = {
 
 #: Short names of the four Lambda functions (CONTEXT §9).
 FUNCTIONS = ("api", "ingest", "processor", "recs-writer")
-STACKS = ("base", "pipeline")
+#: base and pipeline (CONTEXT §5), plus M6's throwaway service-check stack (M6-03).
+STACKS = ("base", "pipeline", "servicecheck")
+
+#: The Cognito user the simulator and acceptance checks sign in as (CONTEXT §9 "Cognito").
+SIM_BOT_USERNAME = "sim-bot@earshot.test"
 
 GLUE_TABLE = "events"
 

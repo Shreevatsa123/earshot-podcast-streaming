@@ -99,7 +99,7 @@
 | **M3** | Ingest & Simulator | `services/ingest/`, `simulator/`, `contracts/samples/events.jsonl`, `infra/earshot_infra/constructs/ingest.py` (base), `infra/earshot_infra/constructs/stream.py` (pipeline), `infra/earshot_infra/constructs/simulator.py` (pipeline) |
 | **M4** | Real-time Processing | `services/processor/`, `infra/earshot_infra/constructs/processing.py` (processor function + DLQ in base, event source mapping in pipeline) |
 | **M5** | Data Lake & Recommendations | `athena/`, `services/recs_writer/`, `infra/earshot_infra/constructs/lake.py`, `infra/earshot_infra/constructs/firehose.py`, `infra/earshot_infra/constructs/recs.py` |
-| **M6** | Platform, Monitoring & Testing (integration lead) | `infra/app.py`, `infra/cdk.json`, `infra/requirements.txt`, `infra/earshot_infra/config.py`, `infra/earshot_infra/common.py`, `infra/earshot_infra/stacks/`, `infra/earshot_infra/constructs/core.py`, `infra/earshot_infra/constructs/monitoring.py`, `scripts/` (except `catalog/`), `tests/load/`, `tests/acceptance/`, `Makefile`, `pyproject.toml`, `requirements-dev.txt`, `.github/` |
+| **M6** | Platform, Monitoring & Testing (integration lead) | `infra/app.py`, `infra/cdk.json`, `infra/requirements.txt`, `infra/earshot_infra/config.py`, `infra/earshot_infra/common.py`, `infra/earshot_infra/stacks/`, `infra/earshot_infra/constructs/core.py`, `infra/earshot_infra/constructs/monitoring.py`, `infra/earshot_infra/stacks/service_check_stack.py`, `scripts/` (except `catalog/`), `tests/load/`, `tests/acceptance/` harness (`harness.py`, `context.py`, `__main__.py`, `s10_cost.py`; every other `s<N>_*.py` check belongs to that criterion's owner in TRACKER), `docs/results.md`, `Makefile`, `pyproject.toml`, `requirements-dev.txt`, `.github/` |
 | **All** | Shared | `contracts/` (change process §12), `services/shared/`, `CONTEXT.md`, `docs/` |
 
 ```
@@ -136,7 +136,8 @@ earshot/
 ├── simulator/                  ← python -m simulator ...
 ├── web/                        ← React app
 ├── scripts/                    ← seed_catalog.py, set_flag.py, pipeline_up.sh, pipeline_down.sh, ...
-├── tests/unit/  tests/acceptance/  tests/load/
+├── tests/unit/  tests/load/
+├── tests/acceptance/           ← S1–S10 harness (M6) + one s<N>_*.py check per criterion (its owner)
 └── docs/
     ├── BRD.md                  ← business requirements
     ├── results.md              ← measured S1–S10 results
@@ -181,9 +182,15 @@ make bootstrap            # cdk bootstrap (once per account)
 make deploy-base  STAGE=x # builds web/, deploys base stack
 make seed         STAGE=x # loads contracts/samples/catalog.json into DynamoDB
 make pipeline-up  STAGE=x # deploys pipeline stack
-make pipeline-down STAGE=x# destroys pipeline stack
+make pipeline-down STAGE=x# destroys pipeline stack, then runs the cost check
 make destroy-all  STAGE=x # everything (dev stages only)
+make cost-check           # lists anything billing by the hour in the account (read-only)
+make account-check        # Lambda concurrency and EC2 vCPU limits (read-only)
+make service-check STAGE=x# M6-03: deploys one tiny resource per service, then destroys it
+make acceptance   STAGE=x # S1–S10 checks; ONLY=S1,S10 for some; prod updates docs/results.md
 ```
+
+CI also enforces the cost rules: a test fails if the pipeline stack, the service-check stack or a dev base stack would leave any resource behind (`DeletionPolicy: Retain`). Several CDK resources retain by default (Cognito user pools, DynamoDB tables, S3 buckets, log groups), so set `removal_policy=RemovalPolicy.DESTROY` on yours (or call `resource.apply_removal_policy(...)`). The failing test lists the resources.
 
 ---
 
@@ -484,6 +491,7 @@ Add the newest entry at the top: `YYYY-MM-DD · M<#> · §<section> · what chan
 
 | Date | Who | Section | Change |
 |---|---|---|---|
+| 2026-11-06 | M6 | §4, §5, §10 | M6-05 monitoring: dashboard + 6 alarms to ops-alerts, kept inside the CloudWatch free tier (≤ 50 dashboard metrics, ≤ 10 alarm metrics, checked at synth); the API row and 5xx alarm need the HTTP API object, so base passes `api.http_api`. M6-08 `make cost-check` (also after `pipeline-down`). M6-03 `make service-check` (throwaway `earshot-<stage>-servicecheck` stack + account limits). M6-07 `make acceptance` harness: each `tests/acceptance/s<N>_*.py` belongs to its criterion's owner; only prod results go in `docs/results.md`. CI now fails if the pipeline, service-check or a dev base stack would retain resources. `names.py`: `servicecheck` stack, `SIM_BOT_USERNAME` (value already in §9) |
 | 2026-11-04 | M5 | §9, §10 | M5-01: the Athena workgroup does **not** enforce its configuration. Enforcing would override each query's output location, and the recs job writes under `recs-runs/<run_id>/` (§10). The 1 GB per-query cutoff applies to every query either way |
 | 2026-10-19 | M6 | §0, §3, §12 | Added CI (M6-04): lint, tests and synth on every PR; merge only on ✅. Removed the TRACKER Blockers table (blockers go to the group chat). Node 22+ (20 is EOL). No account IDs/emails in the public repo |
 | 2026-10-19 | M6 | §4, §5 | M6-01 skeleton. **Pipeline now references base by name/ARN, not CDK props** (avoids CloudFormation export locks). `core.py` owns the table, lake bucket, SNS topics and flags param. `services/shared/names.py` is the single source of names. Lambdas use `common.python_function`. Dropped `contracts/event.schema.json` and `api.md` copies (§6/§7 are the contract; copies would drift) |

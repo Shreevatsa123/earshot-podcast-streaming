@@ -127,12 +127,12 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 |---|---|---|---|---|---|
 | M6-01 | Repo skeleton (§4), `config.py`, `app.py`, both stacks with **stub constructs for every member**, Makefile (§5); `cdk synth` green | — | done | [#2](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/2) | Verified in Codespaces: 59 tests + `cdk synth` pass |
 | M6-02 | Shared `prod` account: IAM access for 5 teammates, Budgets, Lambda concurrency quota increase request | — | todo | | |
-| M6-03 | Free plan service check in `prod` (deploy one tiny resource per approved service, §3); report blockers | M6-02 | todo | | |
-| M6-04 | GitHub Actions on every PR: `cdk synth` + `pytest` (no deploy) | M6-01 | review | | `.github/workflows/ci.yml`: lint + tests + synth (dev and prod) on every PR and push to `main` |
-| M6-05 | Monitoring construct: dashboard + ≤ 10 alarms + ops topic (§10) | M6-01 | todo | | |
+| M6-03 | Free plan service check in `prod` (deploy one tiny resource per approved service, §3); report blockers | M6-02 | review | | Code ready: `make service-check STAGE=prod` deploys a throwaway stack (CloudFront, Cognito, HTTP API, Lambda, Step Functions, SQS, Kinesis, Firehose, EC2), prints the account limits, then destroys it. Done once it has run in `prod` |
+| M6-04 | GitHub Actions on every PR: `cdk synth` + `pytest` (no deploy) | M6-01 | done | [#3](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/3) | Green on every PR and push to `main` since Oct 19 |
+| M6-05 | Monitoring construct: dashboard + ≤ 10 alarms + ops topic (§10) | M6-01 | review | | Dashboard + 6 alarms to ops-alerts (5 until M2's API exists), inside the CloudWatch free tier (checked at synth). Done once `deploy-base` shows it in `prod` |
 | M6-06 | Locust `/home` test (50 users, 5 min, run from EC2) | M2-06, M3-07 | todo | | |
-| M6-07 | Acceptance harness `tests/acceptance/` (S1–S10 runner) + `docs/results.md` template | M6-01 | todo | | |
-| M6-08 | Cost check script: lists any hourly-billed resources left running; weekly cost note in Notes | M6-01 | todo | | |
+| M6-07 | Acceptance harness `tests/acceptance/` (S1–S10 runner) + `docs/results.md` template | M6-01 | review | | `make acceptance STAGE=x [ONLY=S1,S10]`. S10 is automated; S1–S9 are stubs for their owners, each docstring says what to check. Only prod results update `docs/results.md` |
+| M6-08 | Cost check script: lists any hourly-billed resources left running; weekly cost note in Notes | M6-01 | review | | `make cost-check` (also runs after `pipeline-down`): whole account, read-only, exit 1 if anything bills hourly. CI also fails if a stack would leave resources behind |
 | M6-09 | Status update document (done / hurdles / remaining, from this tracker) | G2 | todo | | Course deliverable |
 | M6-10 | Slides skeleton; each member fills in their component; sources + `docs/ai-usage.md` cited | G4 | todo | | Course deliverable |
 

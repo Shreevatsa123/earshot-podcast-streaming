@@ -12,8 +12,23 @@ from earshot_infra import common  # noqa: E402
 from earshot_infra.config import StageConfig  # noqa: E402
 from earshot_infra.stacks.base_stack import BaseStack  # noqa: E402
 from earshot_infra.stacks.pipeline_stack import PipelineStack  # noqa: E402
+from earshot_infra.stacks.service_check_stack import ServiceCheckStack  # noqa: E402
 
 ACCOUNT = "123456789012"
+
+
+def retained_resources(template: Template) -> dict[str, str]:
+    """Logical id -> type of every resource CloudFormation would keep after deleting the stack."""
+    resources = template.to_json().get("Resources", {})
+    return {lid: r["Type"] for lid, r in resources.items() if r.get("DeletionPolicy") == "Retain"}
+
+
+RETAIN_HELP = (
+    "These resources would survive stack deletion. In the pipeline and service-check stacks "
+    "that means hourly bills; in a dev base stack it breaks redeploys. Set "
+    "removal_policy=RemovalPolicy.DESTROY (or resource.apply_removal_policy(...)). Only the "
+    "prod table and lake bucket are retained (CONTEXT §5)."
+)
 
 
 def synth(stage: str, alert_email: str | None = None) -> tuple[Template, Template]:
@@ -152,3 +167,44 @@ def test_python_function_helper_defaults():
     template.has_resource_properties(
         "AWS::Logs::LogGroup", {"LogGroupName": "/aws/lambda/earshot-dev-api", "RetentionInDays": 7}
     )
+
+
+def test_pipeline_never_leaves_resources_behind():
+    """`make pipeline-down` must leave nothing hourly-billed (CONTEXT §5, S10)."""
+    for stage in ("dev", "prod"):
+        _, pipeline = synth(stage)
+        assert not retained_resources(pipeline), RETAIN_HELP
+
+
+def test_dev_base_leaves_nothing_behind():
+    base, _ = synth("dev")
+    assert not retained_resources(base), RETAIN_HELP
+
+
+def test_service_check_stack_covers_its_services_and_cleans_up():
+    app = cdk.App()
+    cfg = StageConfig(stage="prod", account=ACCOUNT)
+    stack = ServiceCheckStack(
+        app,
+        cfg.stack_name("servicecheck"),
+        cfg=cfg,
+        env=cdk.Environment(account=cfg.account, region=cfg.region),
+    )
+    template = Template.from_stack(stack)
+    for resource_type in (
+        "AWS::S3::Bucket",
+        "AWS::CloudFront::Distribution",
+        "AWS::Cognito::UserPool",
+        "AWS::ApiGatewayV2::Api",
+        "AWS::Lambda::Function",
+        "AWS::StepFunctions::StateMachine",
+        "AWS::SQS::Queue",
+        "AWS::Kinesis::Stream",
+        "AWS::KinesisFirehose::DeliveryStream",
+        "AWS::EC2::Instance",
+    ):
+        assert template.find_resources(resource_type), f"missing {resource_type}"
+    template.has_resource_properties("AWS::EC2::Instance", {"InstanceType": "t3.micro"})
+    template.has_resource_properties("AWS::Kinesis::Stream", {"ShardCount": 1})
+    template.has_resource_properties("AWS::Lambda::Function", {"FunctionName": "earshot-prod-check-fn"})
+    assert not retained_resources(template), RETAIN_HELP

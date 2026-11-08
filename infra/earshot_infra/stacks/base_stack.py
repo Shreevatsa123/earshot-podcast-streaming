@@ -68,5 +68,7 @@ class BaseStack(Stack):
         tag_owner(lake, "M5")
         tag_owner(recs, "M5")
 
-        monitoring = Monitoring(self, "Monitoring", cfg=cfg, core=core)
+        # The API graphs and 5xx alarm need the generated API id, so pass the API in
+        # (None until M2-04); everything else is monitored by name.
+        monitoring = Monitoring(self, "Monitoring", cfg=cfg, core=core, http_api=api.http_api)
         tag_owner(monitoring, "M6")

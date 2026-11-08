@@ -19,6 +19,8 @@ def test_names_match_context_section_9():
     assert names.cognito_domain_prefix("priya", ACCOUNT) == "earshot-priya-789012"
     assert names.function_name("priya", "recs-writer") == "earshot-priya-recs-writer"
     assert names.stack_name("priya", "pipeline") == "earshot-priya-pipeline"
+    assert names.stack_name("prod", "servicecheck") == "earshot-prod-servicecheck"
+    assert names.SIM_BOT_USERNAME == "sim-bot@earshot.test"
 
 
 def test_glue_database_replaces_hyphens():

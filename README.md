@@ -40,7 +40,9 @@ make synth STAGE=<you>          # build the templates; changes nothing in AWS
 make bootstrap     STAGE=<you>  # once per account
 make deploy-base   STAGE=<you>  # persistent stack, about $0 while idle
 make pipeline-up   STAGE=<you>  # Kinesis, Firehose, EC2: billed by the hour
-make pipeline-down STAGE=<you>  # ALWAYS run this when you're done
+make pipeline-down STAGE=<you>  # ALWAYS run this when you're done (it then runs the cost check)
+make cost-check                 # anything still billing by the hour? (read-only, whole account)
+make acceptance    STAGE=<you>  # S1-S10 checks (ONLY=S1,S10 for some); see docs/results.md
 ```
 
 Add `ALERT_EMAIL=you@example.com` to `deploy-base` to get alert emails (confirm the link AWS sends you). Run `make help` for every command.
