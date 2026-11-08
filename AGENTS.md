@@ -23,9 +23,10 @@ You are helping one member of a 6-person team build **Earshot** (MSML 650 term p
 
 - Deploy **only when the user asks**, and only to one of these:
   - the user's own stage (`STAGE=<their name>`) in **their own** AWS account (default profile), or
+  - **the user's own stage in the shared account** (`AWS_PROFILE=earshot-prod`), only if their own account can't run Earshot, following the exception in `CONTEXT.md` §5 prod rule 4. When they're done testing, remind them to remove it with `AWS_PROFILE=earshot-prod make destroy-all STAGE=<their name>`, or
   - **`STAGE=prod` in the shared account, following the prod rules in `CONTEXT.md` §5:** from a clean, up-to-date `main` only (`git checkout main && git pull`, nothing uncommitted), with `AWS_PROFILE=earshot-prod` in front of the command, and only after the user has posted in the group chat.
 - **Never deploy a branch to prod.** A deploy replaces prod with exactly the local code, so anything merged that's missing locally gets deleted. Test branches in the user's own stage.
-- Only `STAGE=prod` goes in the shared account: never use `AWS_PROFILE=earshot-prod` with any other stage.
+- With `AWS_PROFILE=earshot-prod`, use only `STAGE=prod` or the user's own stage name (the exception above). Never another member's stage.
 - Never run `make bootstrap` with `AWS_PROFILE=earshot-prod`. Bootstrapping the shared account is M6's job, done once.
 - If you run `make pipeline-up`, run `make pipeline-down` (same stage, same profile) when the work session ends, and tell the user.
 - Never create resources outside CDK (no console steps, no ad-hoc `aws ... create-*` commands).

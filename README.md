@@ -47,6 +47,8 @@ Add `ALERT_EMAIL=you@example.com` to `deploy-base` to get alert emails (confirm 
 
 **Deploying to prod (the shared account):** follow the rules in `CONTEXT.md` §5. Use a clean, up-to-date `main`, post in the group chat first, and start the command with the shared account's profile, e.g. `AWS_PROFILE=earshot-prod make deploy-base STAGE=prod`.
 
+**If your own AWS account can't run Earshot** (e.g. it can't use us-east-1): deploy your own stage in the shared account instead with `AWS_PROFILE=earshot-prod make deploy-base STAGE=<you>`. When you're done testing, remove it with `AWS_PROFILE=earshot-prod make destroy-all STAGE=<you>` (CONTEXT §5, prod rule 4).
+
 **Where your code goes:**
 - Your construct in `infra/earshot_infra/constructs/`. Its docstring lists what it must create and the attributes other constructs read.
 - Your Lambda code in `services/<yours>/`. Shared helpers live in `services/shared/`.

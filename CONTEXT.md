@@ -178,7 +178,12 @@ Lambdas: create them with **`common.python_function(...)`**. It sets the name (`
 1. **Deploy prod only from a clean, up-to-date `main`** (`git checkout main && git pull`, nothing uncommitted). A deploy replaces prod with exactly your local code, so a branch missing someone's merged work deletes their resources. Test branches in your own stage.
 2. **Post in the group chat** before you deploy prod or run `pipeline-up`/`pipeline-down` on it.
 3. **Whoever runs `make pipeline-up STAGE=prod` runs `make pipeline-down STAGE=prod`** when they're done.
-4. **Only `STAGE=prod` in the shared account.** Each stage adds its own dashboard, alarms and custom metrics, and the account's CloudWatch free tier covers about one stage.
+4. **Only `STAGE=prod` in the shared account, with one exception.** If your own AWS account can't run Earshot (e.g. it can't use us-east-1), you may deploy **your own stage** there (`STAGE=<your first name>`, never someone else's):
+   - Post in the group chat when you create it and when you destroy it.
+   - You may deploy it from your branch. Rule 1 only applies to `STAGE=prod`.
+   - The usual cost rules apply: `pipeline-down` after every session.
+   - When you're done testing, remove it with `AWS_PROFILE=earshot-prod make destroy-all STAGE=<your first name>`. Non-prod stages keep no data, so nothing is left behind.
+   - Each extra stage adds its own dashboard, alarms and custom metrics, and the account's CloudWatch free tier covers about one stage. So keep extra stages to the members who need one, and don't leave them up longer than you need.
 5. **Nothing by hand in the console.** Everything goes through CDK, so teardown and the cost checks stay reliable. The Makefile refuses `destroy-all` on prod.
 
 **Two stacks per stage:**
@@ -537,6 +542,7 @@ Add the newest entry at the top: `YYYY-MM-DD · M<#> · §<section> · what chan
 
 | Date | Who | Section | Change |
 |---|---|---|---|
+| 2026-11-08 | M6 | §5 | Prod rule 4 exception: a member whose own AWS account can't run Earshot (M2's only allows us-east-2) may deploy their own stage in the shared account. They post in the group chat and remove it with `make destroy-all STAGE=<name>` when done. AGENTS.md, README and TRACKER updated to match |
 | 2026-11-08 | M6 | §0–§5, §7.1, §7.5, §9–§11, §13 | **Contract change: Kinesis + Firehose → SNS topic feeding two SQS queues** (both are blocked on the Free plan). Ingest publishes one SNS message per accepted request (`{"events":[...]}`) to `earshot-<stage>-events`. Raw-delivery subscriptions feed `-hot` (processor, M4) and `-cold` (new archiver Lambda, M5, replaces Firehose). Topic, queues and DLQs are in base; the two SQS triggers are in pipeline (idle polling). The lake is gzipped JSON Lines partitioned by `server_ts` (Parquet needed Firehose). `PIPELINE_OFFLINE` is removed, because ingest no longer depends on the pipeline. Names: `events_topic`, `hot_queue`, `cold_queue`, `archiver_dlq`, function `archiver`; removed `stream_name`/`firehose_name`. Stubs: `stream.py` → `topic.py`, `firehose.py` → `archiver.py` |
 | 2026-11-08 | M6 | §3, §5 | M6-03 finding: **Free plan accounts can't use Kinesis Data Streams or Amazon Data Firehose** (`SubscriptionRequiredException` on every call; service check Nov 7, read-only CLI check Nov 8). Everything else in §3 works. The service check now tests SNS → SQS → Lambda instead. The design change that replaces Kinesis and Firehose (SNS topic feeding two SQS queues) comes in a separate `contract-change` PR |
 | 2026-11-07 | M2 | §8.1 | M2-02: `catalog.json` gains `featured: [{show_id, episode_id}]`, the 20 hand-picked episodes the seed script writes to the `FEATURED` item. `scripts/catalog/check_featured.py` checks they still play (final URL https, serves audio); run it the day before the demo |

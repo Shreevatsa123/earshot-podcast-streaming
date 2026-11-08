@@ -15,3 +15,4 @@
 | 2026-11-07 | M2 | Claude Code (Claude Opus 5.5) | M2-02 picking the 20 FEATURED episodes, `check_featured.py` playability check |
 | 2026-11-08 | M6 | Kiro (Claude) | M6-03 follow-up: diagnosing the Free plan block on Kinesis and Firehose, updated service check (SNS → SQS → Lambda) |
 | 2026-11-08 | M6 | Kiro (Claude) | Contract change replacing Kinesis and Firehose with an SNS topic and two SQS queues: CONTEXT, tracker, stubs, stacks, names |
+| 2026-11-08 | M6 | Kiro (Claude) | Shared-account rule for members whose own AWS account can't run Earshot |

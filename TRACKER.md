@@ -27,7 +27,7 @@
 This repo is **public**: don't put AWS account IDs, emails or keys in it.
 
 **Personal setup (everyone):**
-- AWS account in us-east-1, created after Jun 8, 2026.
+- AWS account in us-east-1, created after Jun 8, 2026. If your account can't run Earshot (e.g. it can't use us-east-1), deploy your own stage in the shared account instead (CONTEXT §5, prod rule 4).
 - **Budgets alerts at $5 and $20 before deploying anything.**
 - MFA on root, plus an admin IAM user.
 - Install Python 3.12, Node 22+, AWS CLI v2, CDK v2, Git, or just use GitHub Codespaces (README).
