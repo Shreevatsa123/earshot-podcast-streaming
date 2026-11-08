@@ -82,12 +82,16 @@ class StageConfig:
         return names.web_bucket(self.stage, self.account)
 
     @property
-    def stream_name(self) -> str:
-        return names.stream_name(self.stage)
+    def events_topic(self) -> str:
+        return names.events_topic(self.stage)
 
     @property
-    def firehose_name(self) -> str:
-        return names.firehose_name(self.stage)
+    def hot_queue(self) -> str:
+        return names.hot_queue(self.stage)
+
+    @property
+    def cold_queue(self) -> str:
+        return names.cold_queue(self.stage)
 
     @property
     def glue_database(self) -> str:
@@ -112,6 +116,10 @@ class StageConfig:
     @property
     def processor_dlq(self) -> str:
         return names.processor_dlq(self.stage)
+
+    @property
+    def archiver_dlq(self) -> str:
+        return names.archiver_dlq(self.stage)
 
     @property
     def state_machine(self) -> str:
@@ -174,12 +182,16 @@ class StageConfig:
         return f"arn:aws:s3:::{self.lake_bucket}"
 
     @property
-    def stream_arn(self) -> str:
-        return self._arn("kinesis", f"stream/{self.stream_name}")
+    def events_topic_arn(self) -> str:
+        return self._arn("sns", self.events_topic)
 
     @property
-    def firehose_arn(self) -> str:
-        return self._arn("firehose", f"deliverystream/{self.firehose_name}")
+    def hot_queue_arn(self) -> str:
+        return self._arn("sqs", self.hot_queue)
+
+    @property
+    def cold_queue_arn(self) -> str:
+        return self._arn("sqs", self.cold_queue)
 
     def function_arn(self, short_name: str) -> str:
         return self._arn("lambda", f"function:{self.function_name(short_name)}")
@@ -187,6 +199,10 @@ class StageConfig:
     @property
     def processor_dlq_arn(self) -> str:
         return self._arn("sqs", self.processor_dlq)
+
+    @property
+    def archiver_dlq_arn(self) -> str:
+        return self._arn("sqs", self.archiver_dlq)
 
     @property
     def qoe_topic_arn(self) -> str:

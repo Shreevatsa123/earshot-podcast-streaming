@@ -15,8 +15,8 @@
 ## 0. Rules for the AI assistant (read first)
 
 1. **Don't change the contracts in §6–§9** (event schema, API, DynamoDB keys, names/SSM params). Code must conform to them. If a change seems needed, stop and tell the user to propose it to the team (§12).
-2. **Don't add AWS services** beyond §3. In particular, never use NAT Gateway, ALB/NLB, RDS/Aurora, ElastiCache, OpenSearch, MSK, Managed Flink, EMR, Glue ETL/Spark jobs, Secrets Manager, KMS customer-managed keys, Route 53 hosted zones, VPC endpoints (interface), or Lambda inside a VPC.
-3. **Stay free.** Every design choice must keep cost at about $0 when idle. Hourly-billed resources (Kinesis, Firehose, EC2) belong in the **pipeline** stack only (§5).
+2. **Don't add AWS services** beyond §3. In particular, never use Kinesis Data Streams or Amazon Data Firehose (Free plan accounts can't use them), NAT Gateway, ALB/NLB, RDS/Aurora, ElastiCache, OpenSearch, MSK, Managed Flink, EMR, Glue ETL/Spark jobs, Secrets Manager, KMS customer-managed keys, Route 53 hosted zones, VPC endpoints (interface), or Lambda inside a VPC.
+3. **Stay free.** Every design choice must keep cost at about $0 when idle. Anything that costs money while it exists (the EC2 simulator, and the Lambda SQS triggers, which poll even when idle) belongs in the **pipeline** stack only (§5).
 4. **Work only in the user's owned paths** (§4). If something outside them is needed, write it as a request to the owning member rather than editing their files.
 5. **Lambda code uses only the Python standard library + boto3** (already in the Lambda runtime). No `pip` dependencies in Lambdas, so CDK never needs Docker bundling.
 6. **IaC is AWS CDK v2 in Python.** Don't produce Terraform, SAM, Serverless Framework, or console click-ops instructions for anything that should be in code.
@@ -38,9 +38,9 @@
 
 - Users sign up, log in, browse real podcasts, and play episodes in the browser. **Audio streams directly from the publisher's public URL. We store only metadata and events, never audio.**
 - The home page has **Continue Listening** (resume at exact position), **Trending Now** (live play counts), and **Recommended for You** (batch co-listening recommendations), with a **popular-content fallback** so the page is never empty.
-- Every playback event (play, pause, seek, buffer, heartbeat, complete) flows through **API Gateway → Lambda → Kinesis**. It then splits into:
-  - **Hot path:** Lambda stream processor → DynamoDB (seconds) + SNS quality alerts
-  - **Cold path:** Amazon Data Firehose → Parquet in S3 → Athena (minutes)
+- Every playback event (play, pause, seek, buffer, heartbeat, complete) flows through **API Gateway → Lambda → an SNS topic**, which fans out to two SQS queues:
+  - **Hot path:** processor Lambda → DynamoDB (seconds) + SNS quality alerts
+  - **Cold path:** archiver Lambda → gzipped JSON in S3 → Athena (about a minute)
 - **Batch path:** Step Functions runs Athena queries on demand to build recommendations and writes them to DynamoDB.
 - An **EC2 listener simulator** generates traffic from thousands of virtual users for testing and the demo.
 
@@ -51,25 +51,32 @@
 ## 2. Architecture
 
 ```
- Browser (React app on S3 + CloudFront)
-   │  Cognito managed login (OAuth code + PKCE) → access token (JWT)
-   ▼
- API Gateway HTTP API  ── JWT authorizer (Cognito) ──────────────────────────────┐
-   │ GET /home /shows /shows/{id} /genres /trending /progress/{id}               │ POST /events
-   ▼                                                                             ▼
- Read Lambdas (M2) ──► DynamoDB single table ◄── Processor Lambda (M4)     Ingest Lambda (M3)
-                         ▲                         ▲    │ SNS (QoE alert)        │ PutRecords
-                         │ RECS/POPULAR items      │    ▼                        ▼
-                         │                         └── Kinesis Data Stream (1 shard) ◄── EC2 Simulator (M3)
- Step Functions (M5) ── Athena ◄── Glue table ◄── S3 lake (Parquet) ◄── Data Firehose (M5) ◄─┘
-   └─► Recs writer Lambda ─► DynamoDB                                          (via API)
+ Browser (React on S3 + CloudFront) ──┐      ┌── EC2 simulator (M3)
+   Cognito login → access token (JWT) │      │
+                                      ▼      ▼
+                      API Gateway HTTP API + JWT authorizer (Cognito)
+                         │ GET routes                      │ POST /events
+                         ▼                                 ▼
+                 Read Lambdas (M2)                Ingest Lambda (M3)
+                         │                                 │ one message per request
+                         ▼                                 ▼
+               DynamoDB single table             SNS events topic (M3)
+                 ▲            ▲                    │                │
+                 │            │                    ▼                ▼
+                 │   Processor Lambda (M4) ◄── hot queue       cold queue
+                 │     └─► SNS QoE alerts                           │
+                 │                                                  ▼
+                 │                                       Archiver Lambda (M5)
+                 │                                                  │ gzipped JSON, every ~60 s
+                 │                                                  ▼
+            Recs writer ◄── Step Functions (M5) ── Athena ◄── S3 lake + Glue table
  CloudWatch dashboard + alarms (M6) · AWS Budgets
 ```
 
 **Data paths:**
 1. **Read:** browser → API → read Lambda → DynamoDB → JSON.
-2. **Hot:** browser/simulator → `POST /events` → ingest Lambda → Kinesis → processor Lambda → DynamoDB (progress, trending, QoE windows) → SNS on buffering spikes.
-3. **Cold:** Kinesis → Firehose (JSON→Parquet using the Glue table schema) → `s3://<lake>/events/dt=YYYY-MM-DD/hour=HH/` → Athena.
+2. **Hot:** browser/simulator → `POST /events` → ingest Lambda → SNS events topic → hot SQS queue → processor Lambda → DynamoDB (progress, trending, QoE windows) → SNS on buffering spikes.
+3. **Cold:** SNS events topic → cold SQS queue → archiver Lambda (collects ~60 s of events) → gzipped JSON Lines in `s3://<lake>/events/dt=YYYY-MM-DD/hour=HH/` (by `server_ts`) → Athena.
 4. **Batch:** Step Functions → Athena (recs + popular queries) → results CSV in S3 → recs writer Lambda → DynamoDB `RECS` and `POPULAR` items.
 
 ---
@@ -86,7 +93,9 @@
 | Unit tests | `pytest` (+ `moto` allowed in tests only) |
 | Repo | One GitHub monorepo, PRs into `main` |
 
-**Approved AWS services (nothing else):** S3, CloudFront, Cognito, API Gateway (HTTP API), Lambda, DynamoDB (on-demand), Kinesis Data Streams (provisioned, 1 shard), Amazon Data Firehose, Glue **Data Catalog only**, Athena, Step Functions (Standard), SNS, SQS (DLQ only), EC2 (t3.micro, default VPC, public subnet), CloudWatch (logs, metrics, 1 dashboard, ≤ 10 alarms), SSM Parameter Store (Standard tier), IAM, AWS Budgets.
+**Approved AWS services (nothing else):** S3, CloudFront, Cognito, API Gateway (HTTP API), Lambda, DynamoDB (on-demand), Glue **Data Catalog only**, Athena, Step Functions (Standard), SNS (standard topics), SQS (standard queues + DLQs), EC2 (t3.micro, default VPC, public subnet), CloudWatch (logs, metrics, 1 dashboard, ≤ 10 alarms), SSM Parameter Store (Standard tier), IAM, AWS Budgets.
+
+**Not available on Free plan accounts** (found by M6-03): Kinesis Data Streams and Amazon Data Firehose. The SNS events topic, the hot and cold SQS queues and the archiver Lambda replace them (§10).
 
 ---
 
@@ -96,9 +105,9 @@
 |---|---|---|
 | **M1** | Frontend & Auth | `web/`, `infra/earshot_infra/constructs/auth.py`, `infra/earshot_infra/constructs/web.py` |
 | **M2** | API & Catalog | `services/api/`, `scripts/catalog/`, `contracts/samples/catalog.json`, `infra/earshot_infra/constructs/api.py` |
-| **M3** | Ingest & Simulator | `services/ingest/`, `simulator/`, `contracts/samples/events.jsonl`, `infra/earshot_infra/constructs/ingest.py` (base), `infra/earshot_infra/constructs/stream.py` (pipeline), `infra/earshot_infra/constructs/simulator.py` (pipeline) |
-| **M4** | Real-time Processing | `services/processor/`, `infra/earshot_infra/constructs/processing.py` (processor function + DLQ in base, event source mapping in pipeline) |
-| **M5** | Data Lake & Recommendations | `athena/`, `services/recs_writer/`, `infra/earshot_infra/constructs/lake.py`, `infra/earshot_infra/constructs/firehose.py`, `infra/earshot_infra/constructs/recs.py` |
+| **M3** | Ingest & Simulator | `services/ingest/`, `simulator/`, `contracts/samples/events.jsonl`, `infra/earshot_infra/constructs/ingest.py` (base), `infra/earshot_infra/constructs/topic.py` (SNS events topic, base), `infra/earshot_infra/constructs/simulator.py` (pipeline) |
+| **M4** | Real-time Processing | `services/processor/`, `infra/earshot_infra/constructs/processing.py` (hot queue + DLQ + processor function in base, SQS trigger in pipeline) |
+| **M5** | Data Lake & Recommendations | `athena/`, `services/archiver/`, `services/recs_writer/`, `infra/earshot_infra/constructs/lake.py`, `infra/earshot_infra/constructs/archiver.py` (cold queue + DLQ + archiver function in base, SQS trigger in pipeline), `infra/earshot_infra/constructs/recs.py` |
 | **M6** | Platform, Monitoring & Testing (integration lead) | `infra/app.py`, `infra/cdk.json`, `infra/requirements.txt`, `infra/earshot_infra/config.py`, `infra/earshot_infra/common.py`, `infra/earshot_infra/stacks/`, `infra/earshot_infra/constructs/core.py`, `infra/earshot_infra/constructs/monitoring.py`, `scripts/` (except `catalog/`), `tests/load/`, `tests/acceptance/`, `Makefile`, `pyproject.toml`, `requirements-dev.txt`, `.github/` |
 | **All** | Shared | `contracts/` (change process §12), `services/shared/`, `CONTEXT.md`, `docs/` |
 
@@ -131,6 +140,7 @@ earshot/
 │   ├── api/handler.py          ← routes: home, shows, show_detail, genres, trending, progress, health
 │   ├── ingest/handler.py
 │   ├── processor/handler.py
+│   ├── archiver/handler.py
 │   └── recs_writer/handler.py
 ├── athena/                     ← recs.sql, popular.sql, reconcile_trending.sql, count_events.sql
 ├── simulator/                  ← python -m simulator ...
@@ -175,14 +185,14 @@ Lambdas: create them with **`common.python_function(...)`**. It sets the name (`
 
 | Stack | Name | Lifecycle | Contains |
 |---|---|---|---|
-| Base | `earshot-<stage>-base` | **Persistent** (about $0 idle) | DynamoDB table, lake bucket, web bucket + CloudFront, Cognito, HTTP API + all API Lambdas incl. ingest, processor Lambda function (no trigger), recs writer + Step Functions, Glue database + `events` table, Athena workgroup, SNS topics, SQS DLQ, SSM params, dashboard + alarms |
-| Pipeline | `earshot-<stage>-pipeline` | **Ephemeral**: deploy for test or demo, destroy after | Kinesis stream (1 shard, 24 h retention), Kinesis→Lambda event source mapping, Firehose delivery stream, EC2 simulator instance |
+| Base | `earshot-<stage>-base` | **Persistent** (about $0 idle) | DynamoDB table, lake bucket, web bucket + CloudFront, Cognito, HTTP API + all API Lambdas incl. ingest, SNS events topic, hot and cold SQS queues + their DLQs, processor and archiver functions (no triggers), recs writer + Step Functions, Glue database + `events` table, Athena workgroup, alert SNS topics, SSM params, dashboard + alarms |
+| Pipeline | `earshot-<stage>-pipeline` | **Ephemeral**: deploy for test or demo, destroy after | SQS → processor and SQS → archiver triggers (event source mappings; Lambda polls the queues even when they're empty), EC2 simulator instance (hourly) |
 
 A third stack, `earshot-<stage>-servicecheck` (M6-03), exists only while `make service-check` runs: one tiny resource per service, destroyed right after.
 
 **Hard rules:**
-- **Base never references Pipeline objects.** The ingest Lambda finds the stream by its **deterministic name** (§9) and IAM grants use the name-based ARN. If the stream doesn't exist, ingest returns `503 PIPELINE_OFFLINE`.
-- **Pipeline references Base resources by name/ARN from `cfg`** (e.g. `cfg.function_arn("processor")`, `cfg.lake_bucket_arn`, `cfg.processor_dlq_arn`), never through CDK props. That means no CloudFormation exports, so base can be updated while pipeline is deployed, and pipeline can be destroyed anytime. IAM that base resources need for pipeline resources is granted in base on those ARNs (e.g. the processor role's Kinesis read on `cfg.stream_arn`).
+- **Base never references Pipeline objects.** Everything ingest needs (the SNS topic and both queues) is in base, so the API accepts events even while the pipeline is down. They wait in the queues (14-day retention) and are processed once it's back up.
+- **Pipeline references Base resources by name/ARN from `cfg`** (e.g. `cfg.function_arn("processor")`, `cfg.hot_queue_arn`, `cfg.cold_queue_arn`), never through CDK props. That means no CloudFormation exports, so base can be updated while pipeline is deployed, and pipeline can be destroyed anytime. IAM that pipeline resources need is granted in base (e.g. the processor's role can consume the hot queue).
 - `make pipeline-down STAGE=x` after **every** working session. Nothing hourly-billed may be left running overnight.
 - All log groups have **7-day retention**. Removal policy is `DESTROY` for all stages except the `prod` DynamoDB table and lake bucket (`RETAIN`).
 - Tags on everything: `project=earshot`, `stage=<stage>`, `owner=<M#>`.
@@ -253,7 +263,7 @@ Base URL: `https://<api-id>.execute-api.us-east-1.amazonaws.com` (the `$default`
 - **Identity:** `user_id = token claim "sub"`. Read the claims from `event["requestContext"]["authorizer"]["jwt"]["claims"]`.
 - **CORS:** origins = CloudFront URL + `http://localhost:5173`; methods GET, POST, OPTIONS; headers `authorization, content-type, x-earshot-sim-user`.
 - **Throttling:** stage default rate 500 req/s, burst 1000.
-- **Errors:** `{"error":{"code":"<UPPER_SNAKE>","message":"<human text>"}}` with codes `BAD_REQUEST` 400, `UNAUTHORIZED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `PIPELINE_OFFLINE` 503, `INTERNAL` 500.
+- **Errors:** `{"error":{"code":"<UPPER_SNAKE>","message":"<human text>"}}` with codes `BAD_REQUEST` 400, `UNAUTHORIZED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `INTERNAL` 500.
 - **EpisodeCard** (used in many responses):
 ```json
 {"show_id":"920666","episode_id":"16795090","title":"Ep 12: The Vanishing",
@@ -306,10 +316,11 @@ Response **202**: `{"accepted":24,"rejected":[{"index":3,"reason":"INVALID_FIELD
 Ingest behavior:
 1. Validate each event (§6). Reject reasons: `INVALID_JSON`, `INVALID_FIELD:<name>`, `FORBIDDEN_USER`, `THROTTLED`.
 2. Apply the identity rule (§7.2). Set `server_ts`, and set `schema_version=1` if missing.
-3. `PutRecords` to stream `earshot-<stage>-events` with `PartitionKey=user_id`. Retry failed records up to 3 times (backoff 50/100/200 ms). Records still failing → rejected `THROTTLED`.
-4. Stream not found → **503 `PIPELINE_OFFLINE`** for the whole request.
-5. Whole body invalid / not JSON / >25 events → **400**.
-6. Emit metrics `EventsAccepted`, `EventsRejected`.
+3. Publish **one** SNS message to topic `earshot-<stage>-events` (env `TOPIC_ARN`) containing every event that passed steps 1–2, in the §10 message format. Skip the publish if none passed. On a throttling error, retry up to 3 times (backoff 50/100/200 ms). If it still fails, reject every event in the request as `THROTTLED`.
+4. Whole body invalid / not JSON / >25 events → **400**.
+5. Emit metrics `EventsAccepted`, `EventsRejected`.
+
+The topic and queues are in the base stack, so ingest works even while the pipeline is down: events wait in the queues until it's back up.
 
 **Definition of "lost event" (for S4):** accepted by the API (counted in `accepted`) but never stored in S3. Rejected events are reported back to the sender, so they aren't counted as lost.
 
@@ -355,27 +366,28 @@ Catalog target: **~50 shows (≈6 per genre) × ~20 newest episodes ≈ 1,000 ep
 | DynamoDB table | `earshot-<stage>-main` |
 | Lake bucket | `earshot-<stage>-lake-<account_id>` |
 | Web bucket | `earshot-<stage>-web-<account_id>` |
-| Kinesis stream | `earshot-<stage>-events` |
-| Firehose | `earshot-<stage>-events-to-s3` |
+| SNS events topic | `earshot-<stage>-events` |
+| SQS queues | `earshot-<stage>-hot` (processor), `earshot-<stage>-cold` (archiver) |
 | Glue database | `earshot_<stage>` (hyphens → underscores) |
 | Glue table | `events` |
 | Athena workgroup | `earshot-<stage>` (results `s3://<lake>/athena-results/`, 1 GB per-query scan cutoff) |
-| SNS topics | `earshot-<stage>-qoe-alerts`, `earshot-<stage>-ops-alerts` |
-| SQS DLQ | `earshot-<stage>-processor-dlq` |
+| SNS alert topics | `earshot-<stage>-qoe-alerts`, `earshot-<stage>-ops-alerts` |
+| SQS DLQs | `earshot-<stage>-processor-dlq`, `earshot-<stage>-archiver-dlq` |
 | State machine | `earshot-<stage>-recs` |
 | Cognito domain prefix | `earshot-<stage>-<last 6 digits of account_id>` |
-| Lambda functions | `earshot-<stage>-api`, `-ingest`, `-processor`, `-recs-writer` |
+| Lambda functions | `earshot-<stage>-api`, `-ingest`, `-processor`, `-archiver`, `-recs-writer` |
 
 **S3 lake layout:**
 ```
-events/dt=YYYY-MM-DD/hour=HH/*.parquet      ← Firehose (prefix uses !{timestamp:yyyy-MM-dd} / !{timestamp:HH})
-errors/<error-type>/dt=YYYY-MM-DD/          ← Firehose error output
+events/dt=YYYY-MM-DD/hour=HH/*.json.gz      ← archiver (dt/hour from each event's server_ts, UTC)
 recs-runs/<run_id>/                         ← Athena outputs used by recs writer
 athena-results/                             ← workgroup results (lifecycle: expire 7 days)
 ```
-Glue table `events`: Parquet, columns exactly as in §6 (`int` for int fields, `bigint` for `client_ts`/`server_ts`), partition keys `dt` (string) and `hour` (string), **partition projection** enabled (`dt` date `yyyy-MM-dd` range `2026-09-01,NOW`; `hour` integer 0–23 with 2 digits). No crawlers, no `MSCK REPAIR`.
+Glue table `events`: **gzipped JSON Lines**, one §6 event per line with exactly the §6 fields. SerDe `org.openx.data.jsonserde.JsonSerDe`, input format `org.apache.hadoop.mapred.TextInputFormat`, output format `org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat`, `classification=json`. Columns exactly as in §6 (`int` for int fields, `bigint` for `client_ts`/`server_ts`), partition keys `dt` (string) and `hour` (string), **partition projection** enabled (`dt` date `yyyy-MM-dd` range `2026-09-01,NOW`; `hour` integer 0–23 with 2 digits). No crawlers, no `MSCK REPAIR`.
 
-Firehose: source = Kinesis stream; format conversion to Parquet using the Glue table; buffer 64 MiB / **60 s**.
+Why JSON and not Parquet: Firehose did the Parquet conversion, and writing Parquet in a Lambda needs a library our stdlib + boto3 rule doesn't allow (§0). Athena queries both the same way.
+
+Partitions come from `server_ts`, not arrival time, so events that waited in the cold queue (pipeline down) still land in the right hour.
 
 **SSM parameters (String, Standard tier):**
 
@@ -391,7 +403,7 @@ Firehose: source = Kinesis stream; format conversion to Parquet using the Glue t
 
 API Lambdas cache `flags` for **10 s**.
 
-**Lambda environment variables:** `STAGE`, `TABLE_NAME`, `STREAM_NAME`, `QOE_TOPIC_ARN`, `QOE_THRESHOLD`, `FLAGS_PARAM`, `LAKE_BUCKET`, `ALLOWED_GENRES` (comma list). Each function gets only what it uses.
+**Lambda environment variables:** `STAGE`, `TABLE_NAME`, `TOPIC_ARN` (ingest: the SNS events topic), `QOE_TOPIC_ARN`, `QOE_THRESHOLD`, `FLAGS_PARAM`, `LAKE_BUCKET`, `ALLOWED_GENRES` (comma list). Each function gets only what it uses.
 
 **Cognito:** user pool with email sign-in, self sign-up on, Essentials/Lite tier (free ≤ 10k MAU). Groups: `listeners` (default) and `simulator`. Two app clients without secrets: **web** (auth code + PKCE, managed login, callbacks = CloudFront URL + `http://localhost:5173`) and **sim** (`USER_PASSWORD_AUTH`). One user `sim-bot@earshot.test` in `simulator`. The API uses **access tokens**.
 
@@ -402,7 +414,32 @@ API Lambdas cache `flags` for **10 s**.
 
 ## 10. Processing, batch and monitoring specs
 
-**Kinesis → processor event source mapping:** batch size 100, batching window 1 s, starting position `TRIM_HORIZON`, parallelization factor 1, `ReportBatchItemFailures` on, bisect on error on, max retries 5, max record age 3600 s, on-failure destination = SQS DLQ. The processor returns `batchItemFailures` only for transient AWS errors. A malformed record is logged and skipped (it isn't retried forever).
+**Event queues (base stack).** This replaced Kinesis and Firehose, which Free plan accounts can't use (§3).
+- **Topic:** SNS standard topic `earshot-<stage>-events` (M3), no encryption.
+- **Queues:** two SQS standard queues subscribe to it with **raw message delivery**: `-hot` (M4, read by the processor) and `-cold` (M5, read by the archiver). Each consumer owns its queue and subscription.
+- **Queue settings (both):**
+  - SQS-managed encryption (SNS can't deliver to queues using the AWS-managed KMS key).
+  - 14-day retention, so events wait while the pipeline is down.
+  - Redrive to the DLQ after 5 receives (DLQs: same encryption, 14-day retention).
+  - Visibility timeout: 300 s (hot), 900 s (cold). That's at least 6× the function timeout plus the batching window.
+
+**Message format.** One SNS message per accepted `POST /events` request (§7.5). The body is JSON `{"events": [Event, ...]}` with the 1–25 accepted events, already enriched (`user_id`, `server_ts`, `schema_version`; §6). With raw delivery, each SQS message body is exactly this. SQS standard queues deliver **at least once and in no particular order**: the processor's writes (§8.2) and the lake queries (`DISTINCT event_id`) already handle both.
+
+**SQS triggers (event source mappings, pipeline stack):**
+
+| Function | Queue | Batch size | Batching window | Max concurrency | Report batch item failures |
+|---|---|---|---|---|---|
+| processor (M4) | hot | 100 | 1 s | 5 | on |
+| archiver (M5) | cold | 1000 | 60 s | 2 | on |
+
+They live in the pipeline stack because Lambda polls a queue even when it's empty: about 650k SQS requests a month per queue, which is most of the 1M-request free tier.
+
+**Processor (M4):** returns `batchItemFailures` (by `messageId`) only for transient AWS errors. A malformed message or event is logged and skipped (it isn't retried forever). Processing is idempotent (§8.2), so a retried message is safe.
+
+**Archiver (M5, replaces Firehose):** `earshot-<stage>-archiver`, handler `archiver.handler.main`, env `LAKE_BUCKET`, timeout 60 s.
+- For each batch, group the events by the UTC hour of `server_ts`.
+- Write one gzipped JSON Lines object per group to `s3://<lake>/events/dt=YYYY-MM-DD/hour=HH/<uuid>.json.gz`: one §6 event per line, nothing else.
+- If a write fails, report every message in the batch as failed. The retry may write some events twice, which is fine because every query counts `DISTINCT event_id`.
 
 **Recommendations (M5), Step Functions `earshot-<stage>-recs`:**
 1. Parallel: Athena `recs.sql` and `popular.sql` (`startQueryExecution.sync`, workgroup `earshot-<stage>`, output under `recs-runs/<run_id>/`).
@@ -421,9 +458,9 @@ Algorithm (`recs.sql`, last 30 days of `play` events):
 **Custom metrics (namespace `Earshot`, dimension `Stage`; emit with CloudWatch Embedded Metric Format in logs, about 8 metrics total):**
 `EventsAccepted`, `EventsRejected` (M3) · `PlaysCounted`, `DuplicateEvents`, `StaleEvents`, `QoEAlertsSent` (M4) · `HomeFallback` (M2) · `RecsUsersWritten` (M5)
 
-**Dashboard `earshot-<stage>` (M6):** API count/5xx/p95 latency; Lambda errors/throttles/duration (4 functions); Kinesis `IncomingRecords` + `GetRecords.IteratorAgeMilliseconds`; Firehose `DeliveryToS3.Records`; DynamoDB consumed WCU/RCU + throttles; all 8 custom metrics.
+**Dashboard `earshot-<stage>` (M6):** API count/5xx/p95 latency; Lambda errors/throttles/duration (5 functions); for both queues `NumberOfMessagesSent`, `ApproximateNumberOfMessagesVisible` and `ApproximateAgeOfOldestMessage`; DynamoDB consumed WCU/RCU + throttles; all 8 custom metrics.
 
-**Alarms (≤ 10, to `ops-alerts`):** processor iterator age > 60 s; DLQ visible messages > 0; API 5xx rate > 1 % (5 min); any Lambda throttles > 0; Firehose delivery failures > 0.
+**Alarms (≤ 10, to `ops-alerts`):** hot queue oldest message > 60 s (created in the pipeline stack, so it only exists while the processor is supposed to be running); either DLQ visible messages > 0; API 5xx rate > 1 % (5 min); any Lambda throttles > 0; archiver errors > 0.
 
 ---
 
@@ -433,7 +470,7 @@ CLI (runs on the EC2 instance through SSM Session Manager, or locally):
 ```
 python -m simulator run      --stage prod --users 2000 --rate 500 --duration 600 --seed 42 [--mode normal|buffer-storm --storm-region us-west]
 python -m simulator generate --out events.jsonl --users 200 --events 10000 --shuffle --dup-rate 0.10 --seed 7
-python -m simulator replay   --file events.jsonl --direct-kinesis --stage <stage>   # sets server_ts itself
+python -m simulator replay   --file events.jsonl --direct --stage <stage>   # publishes straight to the SNS events topic (§10 format); sets server_ts itself
 ```
 - Virtual users `sim-000000 … sim-NNNNNN`, each with 2 favorite genres. Episode choice is affinity-weighted plus Zipf popularity. Users continue unfinished episodes 60 % of the time.
 - Uses the **committed catalog snapshot** (`contracts/samples/catalog.json`), so IDs match every account.
@@ -467,11 +504,11 @@ python -m simulator replay   --file events.jsonl --direct-kinesis --stage <stage
 
 **M2 (API & Catalog):** One API Lambda with a small router for all GET routes (§7.3, §7.4), including the fallback logic, flags cache and hydration. Catalog scripts: `fetch_catalog.py` (Podcast Index API → `catalog.json`, run once, committed), `seed_catalog.py` (snapshot → DynamoDB incl. `FEATURED`). Construct: HTTP API, JWT authorizer, routes, CORS, throttling, API Lambda. The API construct takes M3's ingest function as a prop and wires it to `POST /events`.
 
-**M3 (Ingest & Simulator):** Ingest Lambda (§7.5) with the validation shared in `services/shared/validate.py`. `constructs/ingest.py` (base) creates the function and grants `kinesis:PutRecords` on the name-based stream ARN. `constructs/stream.py` (pipeline) creates the Kinesis stream. Simulator (§11), committed `contracts/samples/events.jsonl`. EC2 construct: t3.micro AL2023, default VPC public subnet, no inbound SG rules, instance role with SSM core + read of the simulator S3 asset + read of `/earshot/<stage>/*` params; user-data installs Python deps and unpacks the simulator.
+**M3 (Ingest & Simulator):** Ingest Lambda (§7.5) with the validation shared in `services/shared/validate.py`. `constructs/topic.py` (base) creates the SNS events topic. `constructs/ingest.py` (base) creates the function and grants it publish on the topic. Simulator (§11), committed `contracts/samples/events.jsonl`. EC2 construct: t3.micro AL2023, default VPC public subnet, no inbound SG rules, instance role with SSM core + read of the simulator S3 asset + read of `/earshot/<stage>/*` params + publish on the events topic (for `replay --direct`); user-data installs Python deps and unpacks the simulator.
 
-**M4 (Real-time processing):** Processor Lambda (§8.2, §10) with partial batch failures, plus the event source mapping in the pipeline stack and the DLQ in base. Owns the **S3 correctness replay test** and the **S9 QoE test** logic.
+**M4 (Real-time processing):** Processor Lambda (§8.2, §10) reading SQS messages from the hot queue, with partial batch failures. `constructs/processing.py`: the hot queue, its DLQ and its subscription to the events topic in base, and the SQS trigger in the pipeline stack. Owns the **S3 correctness replay test** and the **S9 QoE test** logic.
 
-**M5 (Lake & Recs):** Glue database and `events` table with partition projection (base), Firehose with Parquet conversion (pipeline), Athena workgroup, SQL in `athena/`, Step Functions + recs writer (base). Owns the **S5 reconciliation** and **S7 recs coverage** tests.
+**M5 (Lake & Recs):** Glue database and `events` table (JSON, partition projection; base), the archiver (replaces Firehose: `services/archiver/` and `constructs/archiver.py`, with the cold queue, its DLQ and subscription in base and its SQS trigger in pipeline), Athena workgroup, SQL in `athena/`, Step Functions + recs writer (base). Owns the **S5 reconciliation** and **S7 recs coverage** tests.
 
 **M6 (Platform & Testing):** CDK app/stacks/config/stubs, Makefile + scripts, monitoring construct, Locust (`tests/load/`), acceptance harness for S1–S10 (`tests/acceptance/`), `docs/results.md`, the cost tracker, the shared `prod` account and team IAM users, and integration gates.
 
@@ -500,6 +537,7 @@ Add the newest entry at the top: `YYYY-MM-DD · M<#> · §<section> · what chan
 
 | Date | Who | Section | Change |
 |---|---|---|---|
+| 2026-11-08 | M6 | §0–§5, §7.1, §7.5, §9–§11, §13 | **Contract change: Kinesis + Firehose → SNS topic feeding two SQS queues** (both are blocked on the Free plan). Ingest publishes one SNS message per accepted request (`{"events":[...]}`) to `earshot-<stage>-events`. Raw-delivery subscriptions feed `-hot` (processor, M4) and `-cold` (new archiver Lambda, M5, replaces Firehose). Topic, queues and DLQs are in base; the two SQS triggers are in pipeline (idle polling). The lake is gzipped JSON Lines partitioned by `server_ts` (Parquet needed Firehose). `PIPELINE_OFFLINE` is removed, because ingest no longer depends on the pipeline. Names: `events_topic`, `hot_queue`, `cold_queue`, `archiver_dlq`, function `archiver`; removed `stream_name`/`firehose_name`. Stubs: `stream.py` → `topic.py`, `firehose.py` → `archiver.py` |
 | 2026-11-08 | M6 | §3, §5 | M6-03 finding: **Free plan accounts can't use Kinesis Data Streams or Amazon Data Firehose** (`SubscriptionRequiredException` on every call; service check Nov 7, read-only CLI check Nov 8). Everything else in §3 works. The service check now tests SNS → SQS → Lambda instead. The design change that replaces Kinesis and Firehose (SNS topic feeding two SQS queues) comes in a separate `contract-change` PR |
 | 2026-11-07 | M2 | §8.1 | M2-02: `catalog.json` gains `featured: [{show_id, episode_id}]`, the 20 hand-picked episodes the seed script writes to the `FEATURED` item. `scripts/catalog/check_featured.py` checks they still play (final URL https, serves audio); run it the day before the demo |
 | 2026-11-07 | M2 | §8.1 | M2-01: `catalog.json` is `{source, generated_at, shows[], episodes[]}`. Entries have exactly the §8.1 Show/Episode attributes (no table keys). Only episodes with an https audio URL and a duration of 1 s–24 h; `episode_count` = the show's episodes in the snapshot; each show has one genre. `fetch_catalog.check_catalog()` checks all of this, and a unit test runs it on the committed file |

@@ -1,7 +1,12 @@
-"""Ephemeral stack ``earshot-<stage>-pipeline``: the **hourly-billed** parts (CONTEXT §5).
+"""Ephemeral stack ``earshot-<stage>-pipeline``: the parts that cost money while they exist (CONTEXT §5).
 
 Owner: M6. **Members don't edit this file.** Fill in your own construct in
 ``earshot_infra/constructs/``.
+
+- The EC2 simulator bills by the hour.
+- The two SQS triggers (event source mappings) make Lambda poll the queues even when
+  they're empty, which uses SQS requests. The queues themselves are in base, so events
+  sent while this stack is down wait there and are processed when it's back up.
 
 Deploy only for tests and demos: ``make pipeline-up STAGE=x``. Always run
 ``make pipeline-down STAGE=x`` afterwards.
@@ -20,10 +25,9 @@ from constructs import Construct
 
 from earshot_infra.common import tag_owner, tag_stack
 from earshot_infra.config import StageConfig
-from earshot_infra.constructs.firehose import Firehose
+from earshot_infra.constructs.archiver import ArchiverPipeline
 from earshot_infra.constructs.processing import ProcessingPipeline
 from earshot_infra.constructs.simulator import Simulator
-from earshot_infra.constructs.stream import Stream
 
 
 class PipelineStack(Stack):
@@ -31,14 +35,11 @@ class PipelineStack(Stack):
         super().__init__(scope, construct_id, **kwargs)
         tag_stack(self, cfg)
 
-        stream = Stream(self, "Stream", cfg=cfg)
-        tag_owner(stream, "M3")
-
-        processing = ProcessingPipeline(self, "Processing", cfg=cfg, stream=stream.stream)
+        processing = ProcessingPipeline(self, "Processing", cfg=cfg)
         tag_owner(processing, "M4")
 
-        firehose = Firehose(self, "Firehose", cfg=cfg, stream=stream.stream)
-        tag_owner(firehose, "M5")
+        archiver = ArchiverPipeline(self, "Archiver", cfg=cfg)
+        tag_owner(archiver, "M5")
 
         simulator = Simulator(self, "Simulator", cfg=cfg)
         tag_owner(simulator, "M3")

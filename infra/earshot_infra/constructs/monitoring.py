@@ -9,7 +9,7 @@ Must create:
 - At most 10 alarms, all notifying ``core.ops_topic``.
 
 Build every metric from deterministic names (``cfg.function_name(...)``,
-``cfg.stream_name``, ``cfg.table_name``, …), not from other constructs' attributes, so
+``cfg.hot_queue``, ``cfg.table_name``, …), not from other constructs' attributes, so
 monitoring works whatever state the other constructs are in.
 
 Exposes: nothing.

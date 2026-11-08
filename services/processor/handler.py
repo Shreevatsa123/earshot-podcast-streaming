@@ -1,4 +1,6 @@
-"""Processor Lambda: Kinesis batch -> DynamoDB progress, trending, QoE (CONTEXT §8.2, §10).
+"""Processor Lambda: SQS batch from the hot queue -> DynamoDB progress, trending, QoE (CONTEXT §8.2, §10).
+
+Each SQS record's ``body`` is ``{"events": [...]}`` (CONTEXT §10 "Message format").
 
 Owner: M4 · Tracker: M4-01..M4-04 · Function: ``earshot-<stage>-processor`` · Handler: ``processor.handler.main``
 Env (CONTEXT §9): STAGE, TABLE_NAME, QOE_TOPIC_ARN, QOE_THRESHOLD.

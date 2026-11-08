@@ -17,7 +17,7 @@ def test_json_response_handles_dynamodb_decimals():
 @pytest.mark.parametrize(
     ("code", "status"),
     [("BAD_REQUEST", 400), ("UNAUTHORIZED", 401), ("FORBIDDEN", 403), ("NOT_FOUND", 404),
-     ("INTERNAL", 500), ("PIPELINE_OFFLINE", 503)],
+     ("INTERNAL", 500)],
 )
 def test_error_response_format(code, status):
     response = http.error_response(code, "something went wrong")

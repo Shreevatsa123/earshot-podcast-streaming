@@ -1,7 +1,7 @@
-"""Ingest Lambda: ``POST /events`` -> Kinesis (CONTEXT §7.5).
+"""Ingest Lambda: ``POST /events`` -> the SNS events topic (CONTEXT §7.5, §10 "Message format").
 
 Owner: M3 · Tracker: M3-02 · Function: ``earshot-<stage>-ingest`` · Handler: ``ingest.handler.main``
-Env (CONTEXT §9): STAGE, STREAM_NAME, ALLOWED_GENRES.
+Env (CONTEXT §9): STAGE, TOPIC_ARN, ALLOWED_GENRES.
 
 STATUS: STUB. Not deployed until M3's ingest construct creates the function.
 """

@@ -30,8 +30,8 @@ GENRES: dict[str, str] = {
     "history": "History",
 }
 
-#: Short names of the four Lambda functions (CONTEXT §9).
-FUNCTIONS = ("api", "ingest", "processor", "recs-writer")
+#: Short names of the five Lambda functions (CONTEXT §9).
+FUNCTIONS = ("api", "ingest", "processor", "archiver", "recs-writer")
 #: base and pipeline (CONTEXT §5), plus M6's throwaway service-check stack (M6-03).
 STACKS = ("base", "pipeline", "servicecheck")
 
@@ -99,12 +99,19 @@ def web_bucket(stage: str, account: str) -> str:
     return f"{prefix(stage)}-web-{validate_account(account)}"
 
 
-def stream_name(stage: str) -> str:
+def events_topic(stage: str) -> str:
+    """SNS topic every accepted playback event is published to (replaced Kinesis)."""
     return f"{prefix(stage)}-events"
 
 
-def firehose_name(stage: str) -> str:
-    return f"{prefix(stage)}-events-to-s3"
+def hot_queue(stage: str) -> str:
+    """SQS queue the processor reads (hot path)."""
+    return f"{prefix(stage)}-hot"
+
+
+def cold_queue(stage: str) -> str:
+    """SQS queue the archiver reads (cold path, replaced Firehose)."""
+    return f"{prefix(stage)}-cold"
 
 
 def glue_database(stage: str) -> str:
@@ -125,6 +132,10 @@ def ops_topic(stage: str) -> str:
 
 def processor_dlq(stage: str) -> str:
     return f"{prefix(stage)}-processor-dlq"
+
+
+def archiver_dlq(stage: str) -> str:
+    return f"{prefix(stage)}-archiver-dlq"
 
 
 def state_machine(stage: str) -> str:

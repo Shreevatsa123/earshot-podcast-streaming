@@ -9,7 +9,8 @@ Must create:
   group that has **no inbound rules**. Access it through SSM Session Manager (no SSH key,
   no Elastic IP).
 - Instance role: ``AmazonSSMManagedInstanceCore``, plus ``ssm:GetParameter*`` on
-  ``cfg.ssm_stage_parameters_arn`` and read access to the simulator code asset.
+  ``cfg.ssm_stage_parameters_arn``, read access to the simulator code asset, and
+  ``sns:Publish`` on ``cfg.events_topic_arn`` (``replay --direct`` publishes there).
 - User data that installs the Python dependencies and unpacks ``simulator/``
   (from an ``s3_assets.Asset``).
 
