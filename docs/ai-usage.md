@@ -13,3 +13,4 @@
 | 2026-11-07 | M2 | Claude Code (Claude Opus 5.5) | M2-08 `set_flag.py` (show, change and reset the feature flags), unit tests |
 | 2026-11-07 | M2 | Claude Code (Claude Opus 5.5) | M2-07 sample API responses generated from the catalog, and a test that checks them against CONTEXT §7 |
 | 2026-11-07 | M2 | Claude Code (Claude Opus 5.5) | M2-02 picking the 20 FEATURED episodes, `check_featured.py` playability check |
+| 2026-11-08 | M6 | Kiro (Claude) | M6-03 follow-up: diagnosing the Free plan block on Kinesis and Firehose, updated service check (SNS → SQS → Lambda) |
