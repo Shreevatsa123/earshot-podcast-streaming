@@ -1,0 +1,8 @@
+{
+  "apiUrl": "",
+  "region": "us-east-1",
+  "userPoolId": "",
+  "webClientId": "",
+  "cognitoDomain": "",
+  "stage": "local"
+}
