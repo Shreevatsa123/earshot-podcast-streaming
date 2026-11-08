@@ -5,6 +5,7 @@
 | 2026-09-27 | Team | Kiro (Claude) | Brainstorming the topic; drafting the BRD, CONTEXT.md, TRACKER.md and agent instructions |
 | 2026-10-19 | M6 | Kiro (Claude) | M6-01 repo skeleton: CDK app and stacks, stub constructs, Makefile, shared Lambda helpers, unit tests |
 | 2026-10-19 | M6 | Kiro (Claude) | M6-04 CI workflow (lint, tests, synth) and tracker cleanup |
+| 2026-11-03 | M4 | Copilot SDK in VS Code | M4-01 processor progress handling and unit tests |
 | 2026-11-04 | M5 | Claude Code (Claude Opus 5.5) | M5-01 lake construct: Glue database and `events` table with partition projection, Athena workgroup, unit tests |
 | 2026-11-07 | M6 | Kiro (Claude) | M6-02: shared account setup steps (budget, IAM group and access-key policy), prod deploy rules |
 | 2026-11-07 | M5 | Claude Code (Claude Opus 5.5) | M5-03 Athena SQL (`count_events`, `popular`, `reconcile_trending`, `recs`), DuckDB test harness and tests |
@@ -16,3 +17,4 @@
 | 2026-11-08 | M6 | Kiro (Claude) | M6-03 follow-up: diagnosing the Free plan block on Kinesis and Firehose, updated service check (SNS → SQS → Lambda) |
 | 2026-11-08 | M6 | Kiro (Claude) | Contract change replacing Kinesis and Firehose with an SNS topic and two SQS queues: CONTEXT, tracker, stubs, stacks, names |
 | 2026-11-08 | M6 | Kiro (Claude) | Shared-account rule for members whose own AWS account can't run Earshot |
+| 2026-11-08 | M4 | Copilot SDK in VS Code | M4-01 SQS processor decoding, conditional progress tests, and message-level transient failure reporting |
