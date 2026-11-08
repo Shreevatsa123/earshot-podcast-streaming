@@ -77,8 +77,21 @@ def is_retryable_aws_error(error: BotoCoreError | ClientError) -> bool:
         return True
     if not isinstance(error, ClientError):
         return False
-    code = error.response.get("Error", {}).get("Code")
-    return code in RETRYABLE_AWS_ERROR_CODES
+    response = error.response
+    code = response.get("Error", {}).get("Code")
+    if code in RETRYABLE_AWS_ERROR_CODES:
+        return True
+    if code == "TransactionCanceledException":
+        retryable_reasons = {
+            "ProvisionedThroughputExceeded",
+            "ThrottlingError",
+            "TransactionConflict",
+        }
+        return any(
+            reason.get("Code") in retryable_reasons
+            for reason in response.get("CancellationReasons", [])
+        )
+    return False
 
 
 def update_progress(
@@ -131,10 +144,83 @@ def update_progress(
     return True
 
 
+def count_trending_play(
+    table: Any,
+    playback_event: Mapping[str, Any],
+    *,
+    now_ms: int | None = None,
+) -> bool:
+    """Atomically deduplicate a play and increment its UTC-day trending counter."""
+    event_id = playback_event["event_id"]
+    server_ts = playback_event["server_ts"]
+    now_seconds = (clock.now_ms() if now_ms is None else now_ms) // 1000
+    try:
+        table.meta.client.transact_write_items(
+            TransactItems=[
+                {
+                    "Put": {
+                        "TableName": table.name,
+                        "Item": {
+                            "PK": f"EVT#{event_id}",
+                            "SK": "EVT",
+                            "ttl": now_seconds + 24 * 60 * 60,
+                        },
+                        "ConditionExpression": "attribute_not_exists(PK)",
+                    }
+                },
+                {
+                    "Update": {
+                        "TableName": table.name,
+                        "Key": {
+                            "PK": f"TREND#{clock.utc_date(server_ts)}",
+                            "SK": f"EP#{playback_event['episode_id']}",
+                        },
+                        "UpdateExpression": "SET #show_id = :show_id, #ttl = :ttl ADD #plays :one",
+                        "ExpressionAttributeNames": {
+                            "#show_id": "show_id",
+                            "#plays": "plays",
+                            "#ttl": "ttl",
+                        },
+                        "ExpressionAttributeValues": {
+                            ":show_id": playback_event["show_id"],
+                            ":ttl": now_seconds + 8 * 24 * 60 * 60,
+                            ":one": 1,
+                        },
+                    }
+                },
+            ]
+        )
+    except ClientError as error:
+        details = error.response.get("Error", {})
+        reasons = error.response.get("CancellationReasons", [])
+        if (
+            details.get("Code") == "TransactionCanceledException"
+            and reasons
+            and reasons[0].get("Code") == "ConditionalCheckFailed"
+        ):
+            return False
+        raise
+    return True
+
+
+def is_trending_play(playback_event: Mapping[str, Any]) -> bool:
+    """Check that the fields needed to count a play are present and well-typed."""
+    return (
+        playback_event.get("event_type") != "play"
+        or (
+            isinstance(playback_event.get("event_id"), str)
+            and bool(playback_event["event_id"])
+            and type(playback_event.get("server_ts")) is int
+        )
+    )
+
+
 def main(event: dict[str, Any], context: Any) -> dict[str, Any]:
     """Process an SQS batch and report transient failures by message ID."""
     records = event.get("Records", [])
     stale_events = 0
+    plays_counted = 0
+    duplicate_events = 0
     malformed_messages = 0
     malformed_events = 0
     batch_item_failures: list[dict[str, str]] = []
@@ -159,9 +245,17 @@ def main(event: dict[str, Any], context: Any) -> dict[str, Any]:
                 if not is_progress_event(playback_event):
                     malformed_events += 1
                     continue
+                if not is_trending_play(playback_event):
+                    malformed_events += 1
+                    continue
                 try:
                     if not update_progress(table, playback_event):
                         stale_events += 1
+                    if playback_event["event_type"] == "play":
+                        if count_trending_play(table, playback_event):
+                            plays_counted += 1
+                        else:
+                            duplicate_events += 1
                 except (BotoCoreError, ClientError) as error:
                     if not is_retryable_aws_error(error):
                         raise
@@ -178,9 +272,20 @@ def main(event: dict[str, Any], context: Any) -> dict[str, Any]:
         "processor batch complete",
         records=len(records),
         stale_events=stale_events,
+        plays_counted=plays_counted,
+        duplicate_events=duplicate_events,
         malformed_messages=malformed_messages,
         malformed_events=malformed_events,
         failed_messages=failure_details,
     )
-    log.emit_metrics({"StaleEvents": stale_events} if stale_events else {})
+    metrics = {
+        name: count
+        for name, count in (
+            ("PlaysCounted", plays_counted),
+            ("DuplicateEvents", duplicate_events),
+            ("StaleEvents", stale_events),
+        )
+        if count
+    }
+    log.emit_metrics(metrics)
     return {"batchItemFailures": batch_item_failures}

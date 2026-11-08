@@ -1,4 +1,5 @@
 import json
+from types import SimpleNamespace
 
 import boto3
 import pytest
@@ -186,3 +187,107 @@ def test_main_surfaces_non_retryable_aws_errors(monkeypatch):
 
     with pytest.raises(ClientError, match="Invalid request"):
         handler.main({"Records": [sqs_record([event], "invalid-request")]}, context=None)
+
+
+def test_main_counts_distinct_play_events_once(progress_table, monkeypatch, capsys):
+    monkeypatch.setenv("TABLE_NAME", "earshot-test-main")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    now_ms = 1_798_000_000_000
+    monkeypatch.setattr(handler.clock, "now_ms", lambda: now_ms)
+    play = playback_event(
+        client_ts=1_793_548_801_200,
+        position_sec=0,
+        event_type="play",
+    )
+
+    result = handler.main(
+        {"Records": [sqs_record([play], "first"), sqs_record([play], "duplicate")]},
+        context=None,
+    )
+
+    trend_key = {
+        "PK": f"TREND#{handler.clock.utc_date(play['server_ts'])}",
+        "SK": f"EP#{play['episode_id']}",
+    }
+    trend = progress_table.get_item(Key=trend_key)["Item"]
+    assert result == {"batchItemFailures": []}
+    assert trend["plays"] == 1
+    assert trend["show_id"] == play["show_id"]
+    assert trend["ttl"] == now_ms // 1000 + 8 * 24 * 60 * 60
+    marker = progress_table.get_item(
+        Key={"PK": f"EVT#{play['event_id']}", "SK": "EVT"}
+    )["Item"]
+    assert marker["ttl"] == now_ms // 1000 + 24 * 60 * 60
+    metrics = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert metrics["PlaysCounted"] == 1
+    assert metrics["DuplicateEvents"] == 1
+    assert metrics["StaleEvents"] == 1
+
+
+def test_main_skips_play_without_trending_identity_fields(monkeypatch):
+    monkeypatch.setenv("TABLE_NAME", "earshot-test-main")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    malformed_play = playback_event(
+        client_ts=1_793_548_801_200,
+        position_sec=0,
+        event_type="play",
+    )
+    del malformed_play["event_id"]
+
+    class FakeTable:
+        def update_item(self, **kwargs):
+            pytest.fail("malformed play must not update progress")
+
+    class FakeDynamoDB:
+        def Table(self, name):
+            return FakeTable()
+
+    monkeypatch.setattr(handler.boto3, "resource", lambda service: FakeDynamoDB())
+
+    result = handler.main(
+        {"Records": [sqs_record([malformed_play], "missing-event-id")]},
+        context=None,
+    )
+
+    assert result == {"batchItemFailures": []}
+
+
+def test_main_retries_a_transient_trending_transaction_conflict(monkeypatch):
+    monkeypatch.setenv("TABLE_NAME", "earshot-test-main")
+    event = playback_event(
+        client_ts=1_793_548_801_200,
+        position_sec=0,
+        event_type="play",
+    )
+    error = ClientError(
+        {
+            "Error": {"Code": "TransactionCanceledException", "Message": "Transaction conflict"},
+            "CancellationReasons": [
+                {"Code": "None"},
+                {"Code": "TransactionConflict"},
+            ],
+        },
+        "TransactWriteItems",
+    )
+
+    class FakeTable:
+        name = "earshot-test-main"
+
+        def __init__(self):
+            self.meta = SimpleNamespace(client=self)
+
+        def update_item(self, **kwargs):
+            return None
+
+        def transact_write_items(self, **kwargs):
+            raise error
+
+    class FakeDynamoDB:
+        def Table(self, name):
+            return FakeTable()
+
+    monkeypatch.setattr(handler.boto3, "resource", lambda service: FakeDynamoDB())
+
+    result = handler.main({"Records": [sqs_record([event], "transaction-conflict")]}, context=None)
+
+    assert result == {"batchItemFailures": [{"itemIdentifier": "transaction-conflict"}]}
