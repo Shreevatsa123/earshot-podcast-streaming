@@ -68,7 +68,7 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 ### M1: Frontend & Auth
 | ID | Task | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|
-| M1-01 | Vite + React + TS scaffold in `web/`, runtime `config.json` loader, `VITE_USE_MOCKS` mode (§9) | M2-07 *(soft)* | todo | | |
+| M1-01 | Vite + React + TS scaffold in `web/`, runtime `config.json` loader, `VITE_USE_MOCKS` mode (§9) | M2-07 *(soft)* | review | | `web/` Vite+React+TS app. Runtime `/config.json` loader (§9 shape). `VITE_USE_MOCKS=true` serves `contracts/samples/*.json` via the typed API client in `src/lib/api.ts`. Netflix-themed shell (top bar fades on scroll, hover-scale rows) + Home billboard rendering mock `home.json`. Other routes stubbed for M1-06. `npm run build` + type-check green |
 | M1-02 | Auth construct: user pool, groups, web + sim clients, managed login domain, SSM params (§9) | M6-01 | todo | | |
 | M1-03 | Script: create `sim-bot@earshot.test` in `simulator` group, password from SSM | M1-02 | todo | | |
 | M1-04 | Web construct: private bucket, CloudFront + OAC, SPA routing, `config.json` deployment | M6-01 | todo | | |
