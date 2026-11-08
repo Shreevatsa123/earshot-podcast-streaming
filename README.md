@@ -39,7 +39,7 @@ make synth STAGE=<you>          # build the templates; changes nothing in AWS
 ```bash
 make bootstrap     STAGE=<you>  # once per account
 make deploy-base   STAGE=<you>  # persistent stack, about $0 while idle
-make pipeline-up   STAGE=<you>  # Kinesis, Firehose, EC2: billed by the hour
+make pipeline-up   STAGE=<you>  # SQS triggers + EC2 simulator: cost money while up
 make pipeline-down STAGE=<you>  # ALWAYS run this when you're done
 ```
 

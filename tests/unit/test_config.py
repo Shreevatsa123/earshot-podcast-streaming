@@ -8,7 +8,10 @@ ACCOUNT = "123456789012"
 def test_stage_config_names_and_arns():
     cfg = StageConfig(stage="priya", account=ACCOUNT)
     assert cfg.table_name == "earshot-priya-main"
-    assert cfg.stream_arn == f"arn:aws:kinesis:us-east-1:{ACCOUNT}:stream/earshot-priya-events"
+    assert cfg.events_topic_arn == f"arn:aws:sns:us-east-1:{ACCOUNT}:earshot-priya-events"
+    assert cfg.hot_queue_arn == f"arn:aws:sqs:us-east-1:{ACCOUNT}:earshot-priya-hot"
+    assert cfg.cold_queue_arn == f"arn:aws:sqs:us-east-1:{ACCOUNT}:earshot-priya-cold"
+    assert cfg.archiver_dlq_arn == f"arn:aws:sqs:us-east-1:{ACCOUNT}:earshot-priya-archiver-dlq"
     assert cfg.lake_bucket_arn == f"arn:aws:s3:::earshot-priya-lake-{ACCOUNT}"
     assert cfg.function_arn("processor") == (
         f"arn:aws:lambda:us-east-1:{ACCOUNT}:function:earshot-priya-processor"

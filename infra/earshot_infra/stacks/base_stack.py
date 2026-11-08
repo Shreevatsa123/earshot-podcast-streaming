@@ -19,6 +19,7 @@ from constructs import Construct
 from earshot_infra.common import tag_owner, tag_stack
 from earshot_infra.config import StageConfig
 from earshot_infra.constructs.api import Api
+from earshot_infra.constructs.archiver import ArchiverBase
 from earshot_infra.constructs.auth import Auth
 from earshot_infra.constructs.core import Core
 from earshot_infra.constructs.ingest import Ingest
@@ -26,6 +27,7 @@ from earshot_infra.constructs.lake import Lake
 from earshot_infra.constructs.monitoring import Monitoring
 from earshot_infra.constructs.processing import ProcessingBase
 from earshot_infra.constructs.recs import Recs
+from earshot_infra.constructs.topic import EventsTopic
 from earshot_infra.constructs.web import Web
 
 
@@ -43,7 +45,11 @@ class BaseStack(Stack):
         tag_owner(web, "M1")
         tag_owner(auth, "M1")
 
-        ingest = Ingest(self, "Ingest", cfg=cfg, core=core)
+        # The SNS topic goes before ingest (publishes to it) and both consumers
+        # (subscribe their queues to it). None until M3-03.
+        events = EventsTopic(self, "EventsTopic", cfg=cfg)
+        ingest = Ingest(self, "Ingest", cfg=cfg, core=core, topic=events.topic)
+        tag_owner(events, "M3")
         tag_owner(ingest, "M3")
 
         api = Api(
@@ -60,12 +66,17 @@ class BaseStack(Stack):
         # Phase 2 of Web: needs the API URL and Cognito ids for config.json.
         web.publish(api_url=api.url, auth=auth)
 
-        processing = ProcessingBase(self, "Processing", cfg=cfg, core=core)
+        # Hot path: hot queue + processor. Its trigger is in the pipeline stack.
+        processing = ProcessingBase(self, "Processing", cfg=cfg, core=core, topic=events.topic)
         tag_owner(processing, "M4")
 
+        # Cold path: cold queue + archiver (its trigger is in the pipeline stack), the Glue
+        # table and Athena workgroup, and the recs job.
         lake = Lake(self, "Lake", cfg=cfg, core=core)
+        archiver = ArchiverBase(self, "Archiver", cfg=cfg, core=core, topic=events.topic)
         recs = Recs(self, "Recs", cfg=cfg, core=core, lake=lake)
         tag_owner(lake, "M5")
+        tag_owner(archiver, "M5")
         tag_owner(recs, "M5")
 
         monitoring = Monitoring(self, "Monitoring", cfg=cfg, core=core)

@@ -74,7 +74,7 @@ Earshot demonstrates this with a podcast app. Audio streams from public publishe
 
 | ID | Constraint | Implication |
 |---|---|---|
-| C1 | **Cost:** must stay within free credits (~$100–200 per account); target **< $30** in the shared account for the semester | Serverless first. Hourly-billed resources (Kinesis, Firehose, EC2) only in an ephemeral stack deployed for tests and demos. Banned list of costly services. Budgets alerts on day 1 |
+| C1 | **Cost:** must stay within free credits (~$100–200 per account); target **< $30** in the shared account for the semester | Serverless first, on the AWS Free plan (which doesn't allow Kinesis or Firehose, so events go through SNS + SQS). Anything that costs money while it exists (the EC2 simulator, the SQS triggers) only in an ephemeral stack deployed for tests and demos. Banned list of costly services. Budgets alerts on day 1 |
 | C2 | **Parallel, independent work:** 6 members working separately | Frozen contracts, one owner per component, stub constructs, mock fixtures, a personal AWS account per member |
 | C3 | **Balanced difficulty:** not trivial, not overengineered | 1 pipeline, 1 table, 1 stream, 1 batch job. No ML services. Similar workload per member (7–10 tracker tasks each) |
 | C4 | **Fixed course deadlines:** status update Nov 8, slides Dec 6, demo Dec 7–8, peer evaluations Dec 13 | Work is ordered by dependency, not by date; gate G3 must be reached before the status update and G6 before slides |
@@ -105,7 +105,7 @@ Priority: **M** = Must (needed for gate G3, the MVP), **S** = Should (needed for
 | FR-06 | The system keeps each user's latest position per episode, robust to out-of-order and duplicate events | M | M4 | S2, S3 |
 | FR-07 | Opening an episode resumes at the saved position; home shows a **Continue Listening** row | M | M1, M2 | S1, S2 |
 | FR-08 | The system counts plays per episode per day exactly once and shows **Trending Now** (home row + live page) | M | M4, M2, M1 | S3, S5 |
-| FR-09 | Every accepted event is stored in the S3 data lake (Parquet, date/hour partitions) and is queryable with SQL | M | M5 | S4, S5 |
+| FR-09 | Every accepted event is stored in the S3 data lake (gzipped JSON, date/hour partitions) and is queryable with SQL | M | M5 | S4, S5 |
 | FR-10 | A batch job computes "Because you listened to X" recommendations for users with ≥ 3 plays, plus a popular list | S | M5 | S7 |
 | FR-11 | Home shows personalized rows when available, and otherwise a popular or featured fallback. The home page is never empty | S | M2 | S7, S8 |
 | FR-12 | If recommendations are disabled or failing, home still loads and is marked degraded | S | M2 | S8 |
@@ -120,7 +120,7 @@ Priority: **M** = Must (needed for gate G3, the MVP), **S** = Should (needed for
 | ID | Category | Requirement |
 |---|---|---|
 | NFR-01 | Performance | `GET /home` p95 < 500 ms at 50 concurrent users; position visible < 5 s after pause |
-| NFR-02 | Throughput | Sustain 500 events/s for 10 min on one Kinesis shard |
+| NFR-02 | Throughput | Sustain 500 events/s for 10 min through the SNS → SQS pipeline |
 | NFR-03 | Correctness | 0 lost accepted events; 0 double-counted plays; latest position always wins |
 | NFR-04 | Consistency | Real-time trending matches lake counts within 1 % |
 | NFR-05 | Availability / resilience | Recs failure never causes a home 5xx; failed stream batches go to a DLQ and raise an alarm |
@@ -135,17 +135,17 @@ Priority: **M** = Must (needed for gate G3, the MVP), **S** = Should (needed for
 Four data paths on serverless AWS (full detail: `CONTEXT.md` §2):
 
 - **Read:** CloudFront web app → API Gateway (JWT) → Lambda → DynamoDB.
-- **Hot:** `POST /events` → ingest Lambda → Kinesis → processor Lambda → DynamoDB + SNS.
-- **Cold:** Kinesis → Data Firehose → Parquet in S3 → Glue Catalog → Athena.
+- **Hot:** `POST /events` → ingest Lambda → SNS topic → hot SQS queue → processor Lambda → DynamoDB + SNS alerts.
+- **Cold:** SNS topic → cold SQS queue → archiver Lambda → gzipped JSON in S3 → Glue Catalog → Athena.
 - **Batch:** Step Functions → Athena → recs writer Lambda → DynamoDB.
 
 **Services:**
-- **Core:** S3, CloudFront, Cognito, API Gateway, Lambda, DynamoDB, Kinesis Data Streams, Data Firehose, Glue Data Catalog, Athena, Step Functions, SNS, EC2, CloudWatch.
-- **Supporting:** SQS (DLQ), SSM Parameter Store, IAM, AWS Budgets.
+- **Core:** S3, CloudFront, Cognito, API Gateway, Lambda, DynamoDB, SNS, SQS, Glue Data Catalog, Athena, Step Functions, EC2, CloudWatch.
+- **Supporting:** SSM Parameter Store, IAM, AWS Budgets.
 
 Two stacks per environment:
 - **base** (persistent, ≈ $0 idle)
-- **pipeline** (Kinesis, Firehose, EC2 simulator; deployed only for tests and demos)
+- **pipeline** (the SQS triggers and the EC2 simulator; deployed only for tests and demos)
 
 **Parallel-work model:**
 1. Each member owns one component (code + CDK construct) and deploys the whole system into their own account.

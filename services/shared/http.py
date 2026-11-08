@@ -18,7 +18,6 @@ ERROR_STATUS: dict[str, int] = {
     "FORBIDDEN": 403,
     "NOT_FOUND": 404,
     "INTERNAL": 500,
-    "PIPELINE_OFFLINE": 503,
 }
 
 SIMULATOR_GROUP = "simulator"

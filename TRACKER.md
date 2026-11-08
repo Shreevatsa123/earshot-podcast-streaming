@@ -94,10 +94,10 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 | ID | Task | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|
 | M3-01 | `services/shared/validate.py`: event validation per §6 + unit tests | — | todo | | Shared with M4 |
-| M3-02 | Ingest Lambda (§7.5) + ingest construct (base, name-based stream ARN) | M3-01, M6-01 | todo | | |
-| M3-03 | Stream construct (pipeline): 1 shard, 24 h retention | M6-01 | todo | | |
+| M3-02 | Ingest Lambda (§7.5): validate, then publish one SNS message per request (§10 format) + ingest construct (base, publish on the topic) | M3-01, M3-03 | todo | | Changed Nov 8: SNS instead of Kinesis |
+| M3-03 | Events topic construct (`constructs/topic.py`, base): SNS standard topic `earshot-<stage>-events` (§9, §10) | M6-01 | todo | | Changed Nov 8: replaces the Kinesis stream |
 | M3-04 | Commit `contracts/samples/events.jsonl` (1,000 events using catalog IDs) | M2-01 | todo | | Unblocks M4, M5 |
-| M3-05 | Simulator `generate` (shuffle, dup-rate) + `replay --direct-kinesis` (§11) | M3-04, M3-03 | todo | | |
+| M3-05 | Simulator `generate` (shuffle, dup-rate) + `replay --direct` (publishes to the SNS topic, §11) | M3-04, M3-03 | todo | | Changed Nov 8: `--direct` replaces `--direct-kinesis` |
 | M3-06 | Simulator `run`: virtual users, affinity + Zipf, rate control, token refresh, run report | M1-03, M2-04, M3-02 | todo | | |
 | M3-07 | Simulator EC2 construct (pipeline): t3.micro AL2023, no inbound, SSM, S3 asset | M6-01 | todo | | |
 | M3-08 | `buffer-storm` mode | M3-06 | todo | | |
@@ -105,23 +105,24 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 ### M4: Real-time Processing
 | ID | Task | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|
-| M4-01 | Processor: decode + progress conditional update (§8.2) + unit tests for out-of-order input | M3-04 *(soft)* | todo | | |
+| M4-01 | Processor: decode SQS messages (`body` = `{"events":[...]}`, §10) + progress conditional update (§8.2) + unit tests for out-of-order input | M3-04 *(soft)* | todo | | Changed Nov 8: SQS messages instead of Kinesis records |
 | M4-02 | Trending via `TransactWriteItems` + dedupe marker; duplicate unit tests | M4-01 | todo | | |
 | M4-03 | QoE minute windows + exactly one SNS publish at threshold | M4-01 | todo | | |
 | M4-04 | Partial batch failures, skip malformed records, metrics (§10) | M4-01 | todo | | |
-| M4-05 | Processing construct: function + DLQ (base); event source mapping with §10 settings (pipeline) | M6-01, M3-03 | todo | | |
+| M4-05 | Processing construct: hot queue + DLQ + subscription + function (base); SQS trigger with §10 settings (pipeline) | M6-01, M3-03 | todo | | Changed Nov 8: SQS trigger instead of Kinesis |
 | M4-06 | S3 replay test `tests/acceptance/s3_replay.py` (expected results computed offline) | M3-05, M4-02 | todo | | |
 
 ### M5: Data Lake & Recommendations
 | ID | Task | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|
 | M5-01 | Lake construct (base): Glue DB, `events` table with partition projection, Athena workgroup + scan cutoff, lifecycle (§9) | M6-01 | review | [#4](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/4) | Glue DB + `events` table (projection on `dt`/`hour`), workgroup (1 GB cutoff, not enforced: see §15), 7-day `athena-results/` expiry. Tests + synth pass; not yet deployed to own stage |
-| M5-02 | Firehose construct (pipeline): Kinesis source, Parquet conversion, 60 s buffer, Hive prefixes, error prefix | M5-01, M3-03 | todo | | |
+| M5-02 | Archiver (§9, §10): `services/archiver/` Lambda writing gzipped JSON Lines to `events/dt=/hour=` by `server_ts`; `constructs/archiver.py`: cold queue + DLQ + subscription + function (base), SQS trigger (pipeline) | M5-01, M3-03 | todo | | Changed Nov 8: replaces the Firehose construct |
 | M5-03 | SQL in `athena/`: `count_events`, `reconcile_trending`, `popular`, `recs` (§10); develop locally against fixtures first | M3-04 *(soft)* | review | [#6](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/6) | All 4 queries take `dt_from, dt_to, start_ms, end_ms` (see §15). Tested in DuckDB on a Firehose-shaped lake (`tests/unit/test_athena_sql.py`, skipped in CI until `duckdb` is in `requirements-dev.txt`). On 2,000 fake users: every eligible user got 2 full recs rows. Not yet run in real Athena |
 | M5-04 | Recs writer Lambda: result CSVs → RECS + POPULAR items, `RecsUsersWritten` metric | M5-03 | todo | | |
 | M5-05 | Recs construct (base): Step Functions, parallel Athena `.sync` → writer | M5-01, M5-04 | todo | | |
 | M5-06 | S5 reconciliation script (Athena vs DynamoDB trending) | M4-02, M5-02 | todo | | |
 | M5-07 | S7 coverage script (100 eligible + 20 new sim users via `/home`) | M5-05, M2-06 | todo | | |
+| M5-08 | Switch the Glue `events` table from Parquet to JSON (§9): JSON SerDe, text input/output formats, `classification=json`; projection unchanged. Update `lake.py`, its docstring and `test_lake.py` | M5-01 | todo | | Added Nov 8 (contract change). The SQL in `athena/` doesn't change |
 
 ### M6: Platform, Monitoring & Testing
 | ID | Task | Depends on | Status | PR | Notes |
@@ -152,10 +153,10 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 |---|---|---|---|---|---|
 | I1 | Web → Cognito | Code + PKCE, access token | Login in browser | G1 | todo |
 | I2 | Web → API reads | §7, EpisodeCard | Home renders real data | G2 | todo |
-| I3 | Web → `POST /events` | §6, §7.5 | 202 + record in Kinesis | G2 | todo |
+| I3 | Web → `POST /events` | §6, §7.5 | 202 + message in the hot queue | G2 | todo |
 | I4 | Simulator → ingest | §7.2 sim client | Run report `accepted` > 0 | G2 | todo |
-| I5 | Ingest → Kinesis → processor | §10 | Progress item appears | G1 | todo |
-| I6 | Kinesis → Firehose → S3 → Athena | §9 Glue table | `count_events.sql` > 0 | G1 | todo |
+| I5 | Ingest → SNS topic → hot queue → processor | §10 | Progress item appears | G1 | todo |
+| I6 | SNS topic → cold queue → archiver → S3 → Athena | §9 Glue table, §10 | `count_events.sql` > 0 | G1 | todo |
 | I7 | Processor → DynamoDB → `/home` | §8.1 Progress, Trending | Continue + trending rows | G2 | todo |
 | I8 | Processor → SNS → email | §8.2 QoE | Alert email received | G4 | todo |
 | I9 | Step Functions → DynamoDB → `/home` | §8.1 RECS, POPULAR | Personalized row | G4 | todo |

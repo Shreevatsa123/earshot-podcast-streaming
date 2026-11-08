@@ -58,10 +58,10 @@ def python_function(
     timeout_seconds: int = 30,
     description: str | None = None,
 ) -> lambda_.Function:
-    """Create one of the four Earshot Lambdas with the project defaults (CONTEXT §3, §4).
+    """Create one of the five Earshot Lambdas with the project defaults (CONTEXT §3, §4).
 
     - Name ``earshot-<stage>-<name>``, where ``name`` is ``api``, ``ingest``,
-      ``processor`` or ``recs-writer``.
+      ``processor``, ``archiver`` or ``recs-writer``.
     - Python 3.12 on arm64. Code is the whole ``services/`` folder, so ``shared/`` is
       importable. No pip dependencies and no Docker bundling.
     - ``STAGE`` is always set; pass the other variables your function uses (CONTEXT §9).
@@ -71,7 +71,7 @@ def python_function(
 
         fn = python_function(self, "Function", cfg=cfg, name="ingest",
                              handler="ingest.handler.main",
-                             environment={"STREAM_NAME": cfg.stream_name})
+                             environment={"TOPIC_ARN": topic.topic_arn})
     """
     function_name = cfg.function_name(name)
     logs_ = log_group(scope, f"{construct_id}Logs", name=f"/aws/lambda/{function_name}")
