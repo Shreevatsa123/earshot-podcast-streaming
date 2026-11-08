@@ -7,8 +7,14 @@ account limits, and destroys it right away: 15-30 minutes (CloudFront is the slo
 and a few cents.
 
 Covered here: S3, CloudFront, Cognito, API Gateway (HTTP API), Lambda, Step Functions,
-SQS, Kinesis, Firehose, EC2 (t3.micro in the default VPC).
+EC2 (t3.micro in the default VPC), and the event path that replaces Kinesis: an SNS topic
+delivering to an SQS queue (raw message delivery) that triggers a Lambda.
 Covered by ``make deploy-base``: DynamoDB, S3, SNS, SSM, Glue, Athena, CloudWatch, IAM.
+
+Not used at all: Kinesis Data Streams and Amazon Data Firehose. Free plan accounts can't
+use them (every call returns SubscriptionRequiredException, "needs a subscription for the
+service"). The first run of this check found it on Nov 7, 2026, and a read-only CLI check
+on Nov 8 confirmed both.
 
 If the deploy fails, the CloudFormation error names the resource that failed: that's the
 blocked service. Two known cases on new accounts: CloudFront can require AWS Support to
@@ -29,11 +35,11 @@ from aws_cdk import aws_cloudfront as cloudfront
 from aws_cdk import aws_cloudfront_origins as origins
 from aws_cdk import aws_cognito as cognito
 from aws_cdk import aws_ec2 as ec2
-from aws_cdk import aws_iam as iam
-from aws_cdk import aws_kinesis as kinesis
-from aws_cdk import aws_kinesisfirehose as firehose
 from aws_cdk import aws_lambda as lambda_
+from aws_cdk import aws_lambda_event_sources as event_sources
 from aws_cdk import aws_s3 as s3
+from aws_cdk import aws_sns as sns
+from aws_cdk import aws_sns_subscriptions as subscriptions
 from aws_cdk import aws_sqs as sqs
 from aws_cdk import aws_stepfunctions as sfn
 from constructs import Construct
@@ -106,36 +112,21 @@ class ServiceCheckStack(Stack):
             definition_body=sfn.DefinitionBody.from_chainable(sfn.Pass(self, "Noop")),
         )
 
-        sqs.Queue(self, "Queue", queue_name=f"{prefix}-queue", removal_policy=RemovalPolicy.DESTROY)
-
-        stream = kinesis.Stream(
+        # The event path that replaces Kinesis: SNS topic -> SQS queue -> Lambda trigger.
+        # SQS-managed encryption, because SNS can't deliver to a queue encrypted with the
+        # AWS-managed KMS key.
+        topic = sns.Topic(self, "Topic", topic_name=f"{prefix}-topic")
+        queue = sqs.Queue(
             self,
-            "Stream",
-            stream_name=f"{prefix}-stream",
-            stream_mode=kinesis.StreamMode.PROVISIONED,
-            shard_count=1,
-            retention_period=Duration.hours(24),
-            encryption=kinesis.StreamEncryption.MANAGED,
+            "Queue",
+            queue_name=f"{prefix}-queue",
+            encryption=sqs.QueueEncryption.SQS_MANAGED,
+            removal_policy=RemovalPolicy.DESTROY,
         )
-        # Set explicitly: a stream left behind bills every hour.
-        stream.apply_removal_policy(RemovalPolicy.DESTROY)
-
-        firehose_role = iam.Role(
-            self, "FirehoseRole", assumed_by=iam.ServicePrincipal("firehose.amazonaws.com")
-        )
-        bucket.grant_write(firehose_role)
-        delivery = firehose.CfnDeliveryStream(
-            self,
-            "Firehose",
-            delivery_stream_name=f"{prefix}-firehose",
-            delivery_stream_type="DirectPut",
-            extended_s3_destination_configuration=firehose.CfnDeliveryStream.ExtendedS3DestinationConfigurationProperty(
-                bucket_arn=bucket.bucket_arn,
-                role_arn=firehose_role.role_arn,
-            ),
-        )
-        # Firehose checks its permissions on create, so the role's policy must exist first.
-        delivery.node.add_dependency(firehose_role)
+        topic.add_subscription(subscriptions.SqsSubscription(queue, raw_message_delivery=True))
+        # Nothing is published, so the function is never invoked. Lambda polls the empty
+        # queue only while this stack exists (a few hundred free requests).
+        function.add_event_source(event_sources.SqsEventSource(queue, batch_size=10))
 
         # Without a VPC id or subnet, both land in the default VPC (no lookup needed at synth).
         security_group = ec2.CfnSecurityGroup(

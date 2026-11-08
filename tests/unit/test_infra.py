@@ -169,7 +169,11 @@ def test_python_function_helper_defaults():
 
 
 def test_service_check_stack_covers_its_services_and_cleans_up():
-    """M6-03: one tiny resource per service, and nothing survives `cdk destroy`."""
+    """M6-03: one tiny resource per service, and nothing survives `cdk destroy`.
+
+    Kinesis and Firehose aren't allowed: Free plan accounts can't use them, and a
+    blocked resource fails the whole check.
+    """
     app = cdk.App()
     cfg = StageConfig(stage="prod", account=ACCOUNT)
     stack = ServiceCheckStack(
@@ -187,12 +191,18 @@ def test_service_check_stack_covers_its_services_and_cleans_up():
         "AWS::Lambda::Function",
         "AWS::StepFunctions::StateMachine",
         "AWS::SQS::Queue",
-        "AWS::Kinesis::Stream",
-        "AWS::KinesisFirehose::DeliveryStream",
+        "AWS::SNS::Topic",
+        "AWS::SNS::Subscription",
+        "AWS::Lambda::EventSourceMapping",
         "AWS::EC2::Instance",
     ):
         assert template.find_resources(resource_type), f"missing {resource_type}"
+    for blocked in ("AWS::Kinesis::Stream", "AWS::KinesisFirehose::DeliveryStream"):
+        assert not template.find_resources(blocked), f"{blocked} is blocked on the Free plan"
     template.has_resource_properties("AWS::EC2::Instance", {"InstanceType": "t3.micro"})
-    template.has_resource_properties("AWS::Kinesis::Stream", {"ShardCount": 1})
+    template.has_resource_properties(
+        "AWS::SNS::Subscription", {"Protocol": "sqs", "RawMessageDelivery": True}
+    )
+    template.has_resource_properties("AWS::Lambda::EventSourceMapping", {"BatchSize": 10})
     template.has_resource_properties("AWS::Lambda::Function", {"FunctionName": "earshot-prod-check-fn"})
     assert not retained_resources(template), RETAIN_HELP
