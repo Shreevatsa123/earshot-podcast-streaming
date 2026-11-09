@@ -57,6 +57,21 @@ def sqs_record(events: list[object], message_id: str) -> dict[str, str]:
     return {"messageId": message_id, "body": json.dumps({"events": events})}
 
 
+def buffer_event(
+    *,
+    event_id: str,
+    server_ts: int = 1_793_548_801_200,
+    region: str = "us-east",
+) -> dict[str, object]:
+    event = playback_event(
+        client_ts=server_ts,
+        position_sec=40,
+        event_type="buffer",
+    )
+    event.update(event_id=event_id, server_ts=server_ts, region=region)
+    return event
+
+
 def test_main_keeps_newest_progress_when_events_arrive_out_of_order(
     progress_table, monkeypatch, capsys
 ):
@@ -291,3 +306,155 @@ def test_main_retries_a_transient_trending_transaction_conflict(monkeypatch):
     result = handler.main({"Records": [sqs_record([event], "transaction-conflict")]}, context=None)
 
     assert result == {"batchItemFailures": [{"itemIdentifier": "transaction-conflict"}]}
+
+
+def test_main_publishes_one_qoe_alert_when_region_minute_reaches_threshold(
+    progress_table, monkeypatch, capsys
+):
+    monkeypatch.setenv("TABLE_NAME", "earshot-test-main")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    monkeypatch.setenv("QOE_TOPIC_ARN", "arn:aws:sns:us-east-1:123456789012:earshot-test-qoe-alerts")
+    monkeypatch.setenv("QOE_THRESHOLD", "2")
+    now_ms = 1_798_000_000_000
+    monkeypatch.setattr(handler.clock, "now_ms", lambda: now_ms)
+    published = []
+
+    class FakeSNS:
+        def publish(self, **kwargs):
+            published.append(kwargs)
+            return {"MessageId": "alert-message"}
+
+    monkeypatch.setattr(handler.boto3, "client", lambda service: FakeSNS())
+    first = buffer_event(event_id="buffer-1")
+    second = buffer_event(event_id="buffer-2", server_ts=first["server_ts"] + 1)
+
+    result = handler.main(
+        {"Records": [sqs_record([first, second], "buffers")]},
+        context=None,
+    )
+
+    window = progress_table.get_item(
+        Key={
+            "PK": "QOE#us-east",
+            "SK": f"MIN#{handler.clock.utc_minute(first['server_ts'])}",
+        }
+    )["Item"]
+    assert result == {"batchItemFailures": []}
+    assert window["buffers"] == 2
+    assert window["ttl"] == now_ms // 1000 + 24 * 60 * 60
+    assert len(published) == 1
+    assert published[0]["TopicArn"].endswith(":earshot-test-qoe-alerts")
+    assert json.loads(published[0]["Message"]) == {
+        "region": "us-east",
+        "minute": handler.clock.utc_minute(first["server_ts"]),
+        "buffers": 2,
+        "threshold": 2,
+    }
+    assert json.loads(capsys.readouterr().out.splitlines()[-1])["QoEAlertsSent"] == 1
+
+
+def test_main_deduplicates_buffer_events_before_counting_or_alerting(
+    progress_table, monkeypatch, capsys
+):
+    monkeypatch.setenv("TABLE_NAME", "earshot-test-main")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    monkeypatch.setenv("QOE_TOPIC_ARN", "arn:aws:sns:us-east-1:123456789012:earshot-test-qoe-alerts")
+    monkeypatch.setenv("QOE_THRESHOLD", "1")
+    published = []
+
+    class FakeSNS:
+        def publish(self, **kwargs):
+            published.append(kwargs)
+            return {"MessageId": "alert-message"}
+
+    monkeypatch.setattr(handler.boto3, "client", lambda service: FakeSNS())
+    buffer = buffer_event(event_id="replayed-buffer")
+
+    result = handler.main(
+        {
+            "Records": [
+                sqs_record([buffer], "first-delivery"),
+                sqs_record([buffer], "duplicate-delivery"),
+            ]
+        },
+        context=None,
+    )
+
+    window = progress_table.get_item(
+        Key={
+            "PK": "QOE#us-east",
+            "SK": f"MIN#{handler.clock.utc_minute(buffer['server_ts'])}",
+        }
+    )["Item"]
+    metrics = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert result == {"batchItemFailures": []}
+    assert window["buffers"] == 1
+    assert len(published) == 1
+    assert metrics["DuplicateEvents"] == 1
+    assert metrics["QoEAlertsSent"] == 1
+
+
+def test_qoe_windows_are_separate_by_region_and_server_minute(progress_table, monkeypatch):
+    monkeypatch.setenv("TABLE_NAME", "earshot-test-main")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    base = 1_793_548_801_200
+    east = buffer_event(event_id="east-buffer", server_ts=base, region="us-east")
+    west = buffer_event(event_id="west-buffer", server_ts=base, region="us-west")
+    next_minute = buffer_event(
+        event_id="next-minute-buffer",
+        server_ts=base + 60_000,
+        region="us-east",
+    )
+
+    result = handler.main(
+        {"Records": [sqs_record([east, west, next_minute], "three-windows")]},
+        context=None,
+    )
+
+    assert result == {"batchItemFailures": []}
+    for buffer in (east, west, next_minute):
+        window = progress_table.get_item(
+            Key={
+                "PK": f"QOE#{buffer['region']}",
+                "SK": f"MIN#{handler.clock.utc_minute(buffer['server_ts'])}",
+            }
+        )["Item"]
+        assert window["buffers"] == 1
+
+
+@pytest.mark.parametrize(
+    "invalid_field",
+    ["event_id", "server_ts", "region"],
+)
+def test_main_skips_buffer_events_missing_qoe_fields(monkeypatch, invalid_field):
+    monkeypatch.setenv("TABLE_NAME", "earshot-test-main")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    malformed = buffer_event(event_id="invalid-buffer")
+    malformed.pop(invalid_field)
+
+    class FakeTable:
+        def update_item(self, **kwargs):
+            pytest.fail("malformed QoE buffer must not update progress")
+
+    class FakeDynamoDB:
+        def Table(self, name):
+            return FakeTable()
+
+    monkeypatch.setattr(handler.boto3, "resource", lambda service: FakeDynamoDB())
+
+    result = handler.main({"Records": [sqs_record([malformed], "invalid-buffer")]}, context=None)
+
+    assert result == {"batchItemFailures": []}
+
+
+def test_qoe_threshold_defaults_to_thirty_and_rejects_invalid_values(monkeypatch):
+    monkeypatch.delenv("QOE_THRESHOLD", raising=False)
+    assert handler.qoe_threshold() == 30
+
+    monkeypatch.setenv("QOE_THRESHOLD", "not-a-number")
+    with pytest.raises(ValueError, match="positive integer"):
+        handler.qoe_threshold()
+
+    monkeypatch.setenv("QOE_THRESHOLD", "0")
+    with pytest.raises(ValueError, match="positive integer"):
+        handler.qoe_threshold()
