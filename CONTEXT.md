@@ -542,6 +542,7 @@ Add the newest entry at the top: `YYYY-MM-DD · M<#> · §<section> · what chan
 
 | Date | Who | Section | Change |
 |---|---|---|---|
+| 2026-11-16 | M3 | §11 | M3-08: `run --mode buffer-storm` adds `--storm-rate` (default 3/s = 180/min) distinct buffer events in the storm region on top of normal traffic |
 | 2026-11-16 | M3 | §11 | M3-06: run reports go to `runs/<run_id>.run-report.json` (git-ignored) |
 | 2026-11-16 | M3 | §11 | M3-05: `simulator generate --events N` counts lines including duplicates (`round(N × dup-rate)` copies with a later `server_ts`, as a client retry would get); generated events are already enriched. `replay --direct` sets `server_ts` to the publish time unless `--keep-server-ts` |
 | 2026-11-16 | M3 | §7.5 | M3-02: ingest also retries transient SNS errors (not only throttling), and turns any final publish failure into `THROTTLED`, so the client retries instead of losing events |

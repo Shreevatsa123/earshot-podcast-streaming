@@ -21,6 +21,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from shared.validate import REGIONS
+
 HEARTBEAT_SEC = 15
 CONTINUE_PROBABILITY = 0.60
 FAVORITE_GENRE_PROBABILITY = 0.85
@@ -188,3 +190,14 @@ class Population:
             return self._event(user, session, "buffer", client_ts), rng.uniform(1, 5)
         session.position += HEARTBEAT_SEC
         return self._event(user, session, "heartbeat", client_ts), HEARTBEAT_SEC
+
+    def buffer_event(self, user: User, client_ts: int, region: str) -> dict[str, Any]:
+        """A ``buffer`` event in ``region`` for buffer-storm mode (CONTEXT §11)."""
+        session = user.session or self._start_session(user)
+        return self._event(user, session, "buffer", client_ts, region=region)
+
+
+def check_region(region: str) -> str:
+    if region not in REGIONS:
+        raise ValueError(f"Unknown region {region!r}; use one of {', '.join(REGIONS)}")
+    return region

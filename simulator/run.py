@@ -7,6 +7,8 @@
   the ``simulator`` group is allowed to do (§7.2).
 - Retries only ``THROTTLED`` events, and whole batches that got HTTP 429/5xx or a network
   error: 3 retries with exponential backoff. A 401 refreshes the token first.
+- ``--mode buffer-storm``: on top of the normal traffic, ``--storm-rate`` buffer events/s
+  (default 3/s = 180/min, above the 100/min the spec asks for) in ``--storm-region``.
 - At the end writes the run report (``runs/<run_id>.run-report.json`` by default, git-ignored):
   ``{"run_id","start_ms","end_ms","sent","accepted","rejected_by_reason",...}``.
 """
@@ -32,6 +34,7 @@ MAX_RETRIES = 3
 RETRY_BACKOFF_SEC = (0.2, 0.4, 0.8)
 TOKEN_REFRESH_MARGIN_SEC = 300
 HTTP_TIMEOUT_SEC = 10
+DEFAULT_STORM_RATE = 3.0
 
 
 # ---- talking to AWS -------------------------------------------------------------------
@@ -208,6 +211,9 @@ def run(
     tokens: Callable[..., str],
     rate: float,
     duration_sec: float,
+    mode: str = "normal",
+    storm_region: str = "us-west",
+    storm_rate: float = DEFAULT_STORM_RATE,
     workers: int = 16,
     now_ms: Callable[[], int] = lambda: time.time_ns() // 1_000_000,
     monotonic: Callable[[], float] = time.monotonic,
@@ -217,9 +223,12 @@ def run(
     """Send traffic for ``duration_sec`` and return the run report."""
     if rate <= 0 or duration_sec <= 0:
         raise ValueError("--rate and --duration must be positive")
+    if mode not in ("normal", "buffer-storm"):
+        raise ValueError("--mode must be normal or buffer-storm")
     rng = population.rng
     run_id = new_run_id(rng)
     stats = Stats()
+    storm_users = [u for u in population.users if u.region == storm_region] or population.users
     interval = BATCH_SIZE / rate
     in_flight = threading.BoundedSemaphore(workers * 2)
 
@@ -233,6 +242,7 @@ def run(
     t0 = monotonic()
     next_send = t0
     next_progress = t0 + progress_every_sec
+    storm_sent = 0
     with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="sender") as pool:
         while True:
             now = monotonic()
@@ -244,6 +254,11 @@ def run(
                 continue
             client_ts = now_ms()
             batch = [population.step(rng.choice(population.users), client_ts)[0] for _ in range(BATCH_SIZE)]
+            if mode == "buffer-storm":
+                due = int(storm_rate * elapsed) - storm_sent
+                for _ in range(max(0, due)):
+                    batch.append(population.buffer_event(rng.choice(storm_users), client_ts, storm_region))
+                storm_sent += max(0, due)
             for start in range(0, len(batch), BATCH_SIZE):
                 in_flight.acquire()  # back-pressure: if the API is slow, the rate drops
                 pool.submit(task, batch[start : start + BATCH_SIZE])
@@ -267,9 +282,12 @@ def run(
         "sent": snap["sent"],
         "accepted": snap["accepted"],
         "rejected_by_reason": snap["rejected_by_reason"],
+        "mode": mode,
         "users": len(population.users),
         "target_rate": rate,
         "achieved_rate": round(snap["sent"] / seconds, 1),
+        "storm_region": storm_region if mode == "buffer-storm" else None,
+        "storm_events": storm_sent,
         "requests": snap["requests"],
         "retries": snap["retries"],
     }
