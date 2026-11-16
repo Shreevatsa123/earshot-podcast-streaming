@@ -18,7 +18,7 @@
 |---|---|---|---|---|---|---|---|
 | M1 | Frontend & Auth | | | | ☐ | ☐ | ☐ |
 | M2 | API & Catalog | Sankha | SankhaS | `sankha` | ☑ | ☑ | ☐ |
-| M3 | Ingest & Simulator | | | | ☐ | ☐ | ☐ |
+| M3 | Ingest & Simulator | Bhargav | sbhargav0620-ui | `bhargav` | ☐ | ☐ | ☐ |
 | M4 | Real-time Processing | | | | ☐ | ☐ | ☐ |
 | M5 | Data Lake & Recommendations | | | | ☐ | ☐ | ☐ |
 | M6 | Platform, Monitoring & Testing | | | | ☐ | ☐ | ☐ |
@@ -93,7 +93,7 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 ### M3: Ingest & Simulator
 | ID | Task | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|
-| M3-01 | `services/shared/validate.py`: event validation per §6 + unit tests | — | todo | | Shared with M4 |
+| M3-01 | `services/shared/validate.py`: event validation per §6 + unit tests | — | review | [#19](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/19) | `validate_event(raw, now_ms=, allowed_genres=)` → `(clean, None)` or `(None, reason)`; checks every client field in §6 order; drops unknown fields and never returns `user_id`/`server_ts` (ingest sets them). `order_fields()` gives §6 field order. `tests/unit/test_validate.py` |
 | M3-02 | Ingest Lambda (§7.5): validate, then publish one SNS message per request (§10 format) + ingest construct (base, publish on the topic) | M3-01, M3-03 | todo | | Changed Nov 8: SNS instead of Kinesis |
 | M3-03 | Events topic construct (`constructs/topic.py`, base): SNS standard topic `earshot-<stage>-events` (§9, §10) | M6-01 | todo | | Changed Nov 8: replaces the Kinesis stream |
 | M3-04 | Commit `contracts/samples/events.jsonl` (1,000 events using catalog IDs) | M2-01 | todo | | Unblocks M4, M5 |
