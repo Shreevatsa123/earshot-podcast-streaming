@@ -25,3 +25,4 @@
 | 2026-11-16 | M3 | Claude (Claude Opus 5.5) | M3-03: SNS events topic construct |
 | 2026-11-16 | M3 | Claude (Claude Opus 5.5) | M3-02: ingest Lambda, ingest construct and unit tests |
 | 2026-11-16 | M3 | Claude (Claude Opus 5.5) | M3-05: simulator `generate` + `replay --direct` and unit tests |
+| 2026-11-16 | M3 | Claude (Claude Opus 5.5) | M3-06: simulator `run` (Cognito auth, rate control, retries, run report) and unit tests |

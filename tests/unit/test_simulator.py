@@ -1,6 +1,7 @@
-"""M3-05: simulator generate and replay (CONTEXT §11). No AWS."""
+"""M3-05/06: simulator generate, replay and run (CONTEXT §11). No AWS."""
 
 import json
+import random
 import sys
 from collections import Counter
 from pathlib import Path
@@ -16,8 +17,9 @@ from shared.validate import EVENT_FIELDS, validate_event  # noqa: E402
 from simulator import DEFAULT_CATALOG  # noqa: E402
 from simulator.__main__ import main as cli  # noqa: E402
 from simulator.generate import generate_events, read_jsonl  # noqa: E402
-from simulator.model import Catalog  # noqa: E402
+from simulator.model import Catalog, Population  # noqa: E402
 from simulator.replay import replay  # noqa: E402
+from simulator.run import Stats, run, send_batch  # noqa: E402
 
 START = 1_794_000_000_000
 LATER = START + 30 * 24 * 3600 * 1000
@@ -131,3 +133,94 @@ def test_replay_can_keep_server_ts(catalog):
     replay(events, sns=sns, topic_arn="arn:t", keep_server_ts=True, now_fn=lambda: LATER)
     sent = [e for call in sns.calls for entry in call for e in json.loads(entry["Message"])["events"]]
     assert [e["server_ts"] for e in sent] == [e["server_ts"] for e in events]
+
+
+# ---- run --------------------------------------------------------------------------------
+
+
+class FakeApi:
+    """Accepts everything, except the first time it sees an event it can throttle it."""
+
+    def __init__(self, throttle_first=False, statuses=()):
+        self.throttle_first = throttle_first
+        self.statuses = list(statuses)
+        self.seen = set()
+        self.received = []
+
+    def post(self, token, events):
+        if self.statuses:
+            return self.statuses.pop(0), {}
+        rejected = []
+        for i, e in enumerate(events):
+            if self.throttle_first and e["event_id"] not in self.seen:
+                self.seen.add(e["event_id"])
+                rejected.append({"index": i, "reason": "THROTTLED"})
+            else:
+                self.received.append(e)
+        return 202, {"accepted": len(events) - len(rejected), "rejected": rejected}
+
+
+def tokens(force_refresh=False):
+    return "token"
+
+
+def batch(catalog, n=25):
+    pop = Population(catalog, 10, random.Random(1))
+    return [pop.step(pop.users[i % 10], START)[0] for i in range(n)]
+
+
+def test_send_batch_retries_throttled_only(catalog):
+    api, stats = FakeApi(throttle_first=True), Stats()
+    send_batch(api, tokens, batch(catalog), stats, sleep=lambda s: None)
+    snap = stats.snapshot()
+    assert (snap["sent"], snap["accepted"], snap["rejected_by_reason"]) == (25, 25, {})
+    assert snap["retries"] == 1
+
+
+def test_send_batch_gives_up_after_3_retries(catalog):
+    api, stats = FakeApi(statuses=[503, 503, 503, 503]), Stats()
+    send_batch(api, tokens, batch(catalog), stats, sleep=lambda s: None)
+    assert stats.snapshot()["rejected_by_reason"] == {"HTTP_503": 25}
+    assert stats.snapshot()["requests"] == 4
+
+
+def test_send_batch_401_refreshes_token(catalog):
+    calls = []
+
+    def toks(force_refresh=False):
+        calls.append(force_refresh)
+        return "t"
+
+    api, stats = FakeApi(statuses=[401]), Stats()
+    send_batch(api, toks, batch(catalog), stats, sleep=lambda s: None)
+    assert calls == [False, True]
+    assert stats.snapshot()["accepted"] == 25
+
+
+class FakeClock:
+    def __init__(self):
+        self.t = 0.0
+
+    def monotonic(self):
+        return self.t
+
+    def sleep(self, seconds):
+        self.t += max(seconds, 0.001)
+
+    def now_ms(self):
+        return START + int(self.t * 1000)
+
+
+def test_run_rate_and_report(catalog):
+    clock, api = FakeClock(), FakeApi()
+    pop = Population(catalog, 100, random.Random(42))
+    report = run(
+        pop, api=api, tokens=tokens, rate=500, duration_sec=10,
+        now_ms=clock.now_ms, monotonic=clock.monotonic, sleep=clock.sleep,
+    )  # fmt: skip
+    assert report["sent"] == report["accepted"] == len(api.received)
+    assert 4_900 <= report["sent"] <= 5_100  # 500/s for 10 s
+    assert report["rejected_by_reason"] == {}
+    for key in ("run_id", "start_ms", "end_ms", "sent", "accepted", "rejected_by_reason"):
+        assert key in report
+    assert all(e["user_id"].startswith("sim-") for e in api.received)
