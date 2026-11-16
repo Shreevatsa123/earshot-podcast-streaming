@@ -20,3 +20,4 @@
 | 2026-11-08 | M4 | Copilot SDK in VS Code | M4-01 SQS processor decoding, conditional progress tests, and message-level transient failure reporting |
 | 2026-11-08 | M4 | Copilot SDK in VS Code | M4-02 atomic trending play deduplication and unit tests |
 | 2026-11-09 | M4 | Copilot SDK in VS Code | M4-03 QoE minute-window deduplication, threshold SNS alert and unit tests |
+| 2026-11-15 | M3 | Claude (Claude Opus 5.5) | M3-01–M3-08: event validation, ingest Lambda, events topic and simulator EC2 constructs, simulator CLI (generate, replay, run, buffer-storm), `events.jsonl` fixture and unit tests |
