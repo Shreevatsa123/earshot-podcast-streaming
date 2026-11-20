@@ -6,7 +6,7 @@
 -- Parameters, in order:
 --   1. dt_from   varchar 'YYYY-MM-DD'  first dt partition to scan: the UTC date of start_ms
 --   2. dt_to     varchar 'YYYY-MM-DD'  last dt partition to scan: the UTC date AFTER end_ms
---                                      (dt is arrival time; late events land a day later)
+--                                      (dt is the date of server_ts: the extra day is a margin)
 --   3. start_ms  bigint                window start, inclusive (server_ts >= start_ms)
 --   4. end_ms    bigint                window end, exclusive (server_ts < end_ms)
 --

@@ -6,7 +6,7 @@
 --
 -- Parameters, in order (one UTC day D):
 --   1. dt_from   varchar 'YYYY-MM-DD'  D
---   2. dt_to     varchar 'YYYY-MM-DD'  the day after D: plays just before midnight can land there
+--   2. dt_to     varchar 'YYYY-MM-DD'  the day after D (a margin: dt is the date of server_ts)
 --   3. start_ms  bigint                D 00:00 UTC, inclusive
 --   4. end_ms    bigint                the next day 00:00 UTC, exclusive
 --

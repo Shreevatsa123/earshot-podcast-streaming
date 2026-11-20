@@ -20,3 +20,4 @@
 | 2026-11-08 | M4 | Copilot SDK in VS Code | M4-01 SQS processor decoding, conditional progress tests, and message-level transient failure reporting |
 | 2026-11-08 | M4 | Copilot SDK in VS Code | M4-02 atomic trending play deduplication and unit tests |
 | 2026-11-09 | M4 | Copilot SDK in VS Code | M4-03 QoE minute-window deduplication, threshold SNS alert and unit tests |
+| 2026-11-20 | M5 | Claude Code (Claude Opus 5.5) | M5-08 Glue table switch to gzipped JSON Lines, JSON test lake for the SQL tests, unit tests |

@@ -4,9 +4,9 @@
 --
 -- Parameters, in order:
 --   1. dt_from   varchar 'YYYY-MM-DD'  first dt partition to scan: the UTC date of start_ms
---   2. dt_to     varchar 'YYYY-MM-DD'  last dt partition to scan: the UTC date AFTER end_ms,
---                                      because dt is Firehose's arrival time and an event
---                                      just before midnight can land in the next day
+--   2. dt_to     varchar 'YYYY-MM-DD'  last dt partition to scan: the UTC date AFTER end_ms.
+--                                      dt is the date of server_ts, so the extra day is only a
+--                                      margin; the server_ts filter decides what counts
 --   3. start_ms  bigint                window start, inclusive (server_ts >= start_ms)
 --   4. end_ms    bigint                window end, exclusive (server_ts < end_ms)
 --

@@ -1,16 +1,21 @@
 """M5-03: the Athena queries in ``athena/``, run locally with DuckDB (CONTEXT §9, §10).
 
-Each test writes a tiny lake to a temp folder exactly as Firehose lays it out
-(``events/dt=YYYY-MM-DD/hour=HH/*.parquet``, partition columns only in the path), then
-runs the real ``.sql`` file against it. DuckDB isn't Athena (Trino), so the queries stick
-to SQL both support; the first run in real Athena is still the final proof.
+Each test writes a tiny lake to a temp folder exactly as the archiver (M5-02) lays it out:
+gzipped JSON Lines, one §6 event per line, in ``events/dt=YYYY-MM-DD/hour=HH/*.json.gz``
+folders named by the UTC hour of each event's ``server_ts`` (partition columns only in the
+path). It then runs the real ``.sql`` file against it. DuckDB isn't Athena (Trino), so the
+queries stick to SQL both support; the first run in real Athena is still the final proof.
 
 Skipped when duckdb isn't installed.
 """
 
 from __future__ import annotations
 
+import gzip
+import json
 import re
+import uuid
+from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -24,8 +29,8 @@ from earshot_infra.constructs.lake import EVENT_COLUMNS  # noqa: E402
 
 ATHENA_DIR = Path(__file__).resolve().parents[2] / "athena"
 
-#: The Glue table's columns (lake.py, M5-01) as DuckDB types, so the files match what
-#: Firehose writes: Parquet INT32 for ``int``, INT64 for ``bigint``.
+#: The Glue table's columns (lake.py) as DuckDB types. DuckDB reads the JSON with exactly
+#: these types, as Athena does through the Glue table: ``int`` is 32-bit, ``bigint`` 64-bit.
 DUCKDB_TYPES = {"string": "VARCHAR", "int": "INTEGER", "bigint": "BIGINT"}
 COLUMNS: tuple[tuple[str, str], ...] = tuple((name, DUCKDB_TYPES[kind]) for name, kind in EVENT_COLUMNS)
 
@@ -39,7 +44,7 @@ _ids = iter(range(1, 1_000_000))
 
 
 def event(**fields: Any) -> dict[str, Any]:
-    """A valid §6 play event; override any field. ``arrival_ms`` sets the partition (default server_ts)."""
+    """A valid §6 play event; override any field."""
     n = next(_ids)
     base: dict[str, Any] = {
         "event_id": f"evt-{n:06d}",
@@ -62,31 +67,28 @@ def event(**fields: Any) -> dict[str, Any]:
 
 
 def write_lake(root: Path, events: list[dict[str, Any]]) -> Path:
-    """Write ``events`` as Parquet under ``root/events/dt=.../hour=.../`` like Firehose does."""
-    con = duckdb.connect()
-    con.execute(
-        "CREATE TABLE ev ("
-        + ", ".join(f"{name} {kind}" for name, kind in COLUMNS)
-        + ", dt VARCHAR, hour VARCHAR)"
-    )
-    rows = []
+    """Write ``events`` like the archiver: one ``.json.gz`` per ``server_ts`` hour (CONTEXT §9, §10)."""
+    by_hour: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for e in events:
-        arrival = datetime.fromtimestamp(e.get("arrival_ms", e["server_ts"]) / 1000, tz=timezone.utc)
-        rows.append([e[name] for name, _ in COLUMNS] + [arrival.strftime("%Y-%m-%d"), arrival.strftime("%H")])
-    con.executemany(f"INSERT INTO ev VALUES ({', '.join('?' * (len(COLUMNS) + 2))})", rows)
-    root.mkdir(parents=True, exist_ok=True)
-    lake = root / "events"
-    con.execute(f"COPY ev TO '{lake.as_posix()}' (FORMAT parquet, PARTITION_BY (dt, hour))")
-    con.close()
+        at = datetime.fromtimestamp(e["server_ts"] / 1000, tz=timezone.utc)
+        by_hour[f"dt={at:%Y-%m-%d}/hour={at:%H}"].append(e)
+    for folder, group in by_hour.items():
+        path = root / "events" / folder / f"{uuid.uuid4()}.json.gz"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # One §6 event per line, exactly the §6 fields, nothing else.
+        lines = (json.dumps({name: e[name] for name, _ in COLUMNS}, separators=(",", ":")) for e in group)
+        path.write_bytes(gzip.compress(("\n".join(lines) + "\n").encode("utf-8")))
     return root
 
 
 def lake_connection(root: Path) -> duckdb.DuckDBPyConnection:
     """A DuckDB connection with an ``events`` view shaped like the Glue table (dt/hour as strings)."""
     con = duckdb.connect()
-    files = (root / "events").as_posix() + "/*/*/*.parquet"
+    files = (root / "events").as_posix() + "/*/*/*.json.gz"
+    columns = ", ".join(f"'{name}': '{kind}'" for name, kind in COLUMNS)
     con.execute(
-        f"CREATE VIEW events AS SELECT * FROM read_parquet('{files}', hive_partitioning = true, "
+        f"CREATE VIEW events AS SELECT * FROM read_json('{files}', format = 'newline_delimited', "
+        f"columns = {{{columns}}}, hive_partitioning = true, "
         "hive_types = {'dt': VARCHAR, 'hour': VARCHAR})"
     )
     return con
@@ -167,14 +169,14 @@ def test_count_events_window_is_start_inclusive_end_exclusive(tmp_path):
     assert result["distinct_events"] == 2
 
 
-def test_count_events_finds_late_arrivals_in_the_next_dt(tmp_path):
-    """server_ts is 23:59:59.900 but Firehose stamped it after midnight, so it sits in the next dt."""
-    late = event(server_ts=ms("2026-11-02T23:59:59.900"), arrival_ms=ms("2026-11-03T00:00:00.400"))
-    write_lake(tmp_path, [late])
+def test_count_events_finds_events_in_their_server_ts_folder(tmp_path):
+    """The archiver files each event under its own server_ts hour, so 23:59:59.900 stays on its day."""
+    write_lake(tmp_path, [event(server_ts=ms("2026-11-02T23:59:59.900"))])
+    assert (tmp_path / "events" / "dt=2026-11-02" / "hour=23").is_dir()
     day_start, day_end = ms("2026-11-02T00:00:00"), ms("2026-11-03T00:00:00")
-    assert count_events(tmp_path, "2026-11-02", "2026-11-03", day_start, day_end)["distinct_events"] == 1
-    # Scanning only the event's own date misses it: why dt_to is the day after the window.
-    assert count_events(tmp_path, "2026-11-02", "2026-11-02", day_start, day_end)["distinct_events"] == 0
+    # dt_to = the day after is now only a margin: the result is the same with or without it.
+    for dt_to in ("2026-11-02", "2026-11-03"):
+        assert count_events(tmp_path, "2026-11-02", dt_to, day_start, day_end)["distinct_events"] == 1
 
 
 def test_count_events_ignores_partitions_outside_dt_range(tmp_path):
@@ -221,18 +223,18 @@ def test_popular_returns_at_most_20(tmp_path):
     assert [row["episode_id"] for row in rows] == [f"ep-{n:02d}" for n in range(1, 21)]
 
 
-def test_popular_uses_the_window_including_late_arrivals(tmp_path):
+def test_popular_uses_the_window(tmp_path):
     start, end = WEEK[2], WEEK[3]
     write_lake(
         tmp_path,
         [
             event(episode_id="too-early", server_ts=start - 1),
             event(episode_id="first-ms", server_ts=start),
-            event(episode_id="late", server_ts=end - 100, arrival_ms=end + 300),  # in dt=2026-11-03
-            event(episode_id="too-late", server_ts=end),
+            event(episode_id="last-ms", server_ts=end - 1),
+            event(episode_id="too-late", server_ts=end),  # in dt=2026-11-03, which is scanned
         ],
     )
-    assert sorted(row["episode_id"] for row in run_query(tmp_path, "popular", WEEK)) == ["first-ms", "late"]
+    assert sorted(row["episode_id"] for row in run_query(tmp_path, "popular", WEEK)) == ["first-ms", "last-ms"]
 
 
 # ---- reconcile_trending.sql ---------------------------------------------------------------
@@ -260,26 +262,39 @@ def test_reconcile_counts_distinct_plays_per_episode(tmp_path):
 
 
 def test_reconcile_follows_server_ts_across_midnight(tmp_path):
-    """Trending's day is the UTC date of server_ts (§6), not the dt folder the file landed in."""
+    """Trending's day is the UTC date of server_ts (§6), which is also the event's dt folder."""
     write_lake(
         tmp_path,
         [
-            # The previous day's play that landed in D's folder: not D's.
-            event(
-                episode_id="yesterday",
-                server_ts=ms("2026-11-01T23:59:59.900"),
-                arrival_ms=ms("2026-11-02T00:00:00.300"),
-            ),
-            # D's play that landed in D+1's folder: D's.
-            event(
-                episode_id="late-today",
-                server_ts=ms("2026-11-02T23:59:59.800"),
-                arrival_ms=ms("2026-11-03T00:00:00.200"),
-            ),
-            event(episode_id="tomorrow", server_ts=ms("2026-11-03T00:00:00")),
+            event(episode_id="yesterday", server_ts=ms("2026-11-01T23:59:59.900")),
+            event(episode_id="first-ms", server_ts=ms("2026-11-02T00:00:00")),
+            event(episode_id="last-ms", server_ts=ms("2026-11-02T23:59:59.999")),
+            event(episode_id="tomorrow", server_ts=ms("2026-11-03T00:00:00")),  # in the scanned D+1
         ],
     )
-    assert plays(run_query(tmp_path, "reconcile_trending", DAY)) == [("late-today", 1)]
+    assert plays(run_query(tmp_path, "reconcile_trending", DAY)) == [("first-ms", 1), ("last-ms", 1)]
+
+
+# ---- The test lake itself -----------------------------------------------------------------
+
+
+def test_lake_files_are_gzipped_json_lines_with_exactly_the_contract_fields(tmp_path):
+    """The format the archiver must write (CONTEXT §9): .json.gz, one §6 event per line, nothing else."""
+    write_lake(tmp_path, [event(), event(server_ts=ms("2026-11-02T11:30:00"))])
+    files = sorted((tmp_path / "events").rglob("*"))
+    data_files = [p for p in files if p.is_file()]
+    assert [p.parent.relative_to(tmp_path).as_posix() for p in data_files] == [
+        "events/dt=2026-11-02/hour=10",
+        "events/dt=2026-11-02/hour=11",
+    ]
+    for path in data_files:
+        assert path.name.endswith(".json.gz")
+        for line in gzip.decompress(path.read_bytes()).decode("utf-8").splitlines():
+            assert list(json.loads(line)) == [name for name, _ in COLUMNS]
+    # DuckDB reads them back with the Glue table's types.
+    con = lake_connection(tmp_path)
+    types = dict(con.execute("SELECT column_name, column_type FROM (DESCRIBE events)").fetchall())
+    assert types["position_sec"] == "INTEGER" and types["server_ts"] == "BIGINT" and types["dt"] == "VARCHAR"
 
 
 # ---- recs.sql -----------------------------------------------------------------------------

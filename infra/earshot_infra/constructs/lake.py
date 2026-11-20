@@ -1,13 +1,13 @@
 """Glue Data Catalog table and Athena workgroup for the event lake.
 
-Owner: M5 · Stack: base · Tracker: M5-01 · Spec: CONTEXT §9 (Glue table, lake layout)
+Owner: M5 · Stack: base · Tracker: M5-01, M5-08 · Spec: CONTEXT §9 (Glue table, lake layout)
 
 The lake **bucket** itself is ``core.lake_bucket`` (M6). This construct creates:
 
-- Glue database ``cfg.glue_database`` and table ``cfg.glue_table``: Parquet, columns
-  exactly as in §6, partitions ``dt``/``hour`` with **partition projection** (no
-  crawlers, no ``MSCK REPAIR``). L1 ``CfnDatabase`` / ``CfnTable``, because the Glue L2
-  is a separate alpha package.
+- Glue database ``cfg.glue_database`` and table ``cfg.glue_table``: gzipped JSON Lines
+  (one §6 event per line), columns exactly as in §6, partitions ``dt``/``hour`` with
+  **partition projection** (no crawlers, no ``MSCK REPAIR``). L1 ``CfnDatabase`` /
+  ``CfnTable``, because the Glue L2 is a separate alpha package.
 - Athena workgroup ``cfg.athena_workgroup``: default results at
   ``s3://<lake>/athena-results/``, 1 GB per-query scan cutoff,
   ``recursive_delete_option=True`` (so stack deletion works after queries ran).
@@ -17,8 +17,10 @@ The workgroup does **not** enforce its configuration. Enforcing would override e
 query's own output location, and the recs job (§10) writes its results under
 ``recs-runs/<run_id>/``. The scan cutoff applies either way.
 
-The table is also the lake's schema: Firehose (M5-02) converts JSON to Parquet using it,
-so a wrong column here means wrong files or records in ``errors/``.
+The table is also the lake's schema: the archiver (M5-02) writes the files, and Athena
+reads each line by these column names. A missing or misnamed field comes back as NULL
+instead of failing, so the names must match §6 exactly. Athena decompresses the files
+because of their ``.gz`` extension; the table needs no compression setting.
 
 Exposes (keep these names; ``Recs`` reads them): ``database``, ``table``, ``workgroup``.
 Pipeline code refers to them by name (``cfg.glue_*``).
@@ -52,7 +54,7 @@ EVENT_COLUMNS: tuple[tuple[str, str], ...] = (
     ("device", "string"),
 )
 
-#: Hive-style partitions written by Firehose's timestamp prefix (UTC arrival time).
+#: Hive-style partitions: the UTC date and hour of each event's ``server_ts`` (archiver).
 PARTITION_KEYS: tuple[tuple[str, str], ...] = (("dt", "string"), ("hour", "string"))
 
 #: First date the projection covers (CONTEXT §9).
@@ -63,9 +65,11 @@ SCAN_CUTOFF_BYTES = 1024**3
 
 ATHENA_RESULTS_RETENTION = Duration.days(7)
 
-PARQUET_INPUT_FORMAT = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
-PARQUET_OUTPUT_FORMAT = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
-PARQUET_SERDE = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+#: Gzipped JSON Lines (CONTEXT §9). Malformed lines fail the query instead of being
+#: skipped: the archiver only writes valid events, so a bad line is a bug to see.
+JSON_INPUT_FORMAT = "org.apache.hadoop.mapred.TextInputFormat"
+JSON_OUTPUT_FORMAT = "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
+JSON_SERDE = "org.openx.data.jsonserde.JsonSerDe"
 
 
 def projection_parameters(events_location: str) -> dict[str, str]:
@@ -73,10 +77,10 @@ def projection_parameters(events_location: str) -> dict[str, str]:
 
     Athena computes partitions from these instead of reading them from the catalog. A typo
     here doesn't fail: queries just return 0 rows. ``hour`` has 2 digits to match the
-    ``!{timestamp:HH}`` prefix Firehose writes.
+    archiver's ``hour=HH`` folders.
     """
     return {
-        "classification": "parquet",
+        "classification": "json",
         "projection.enabled": "true",
         "projection.dt.type": "date",
         "projection.dt.format": "yyyy-MM-dd",
@@ -113,19 +117,16 @@ class Lake(Construct):
             database_name=cfg.glue_database,
             table_input=glue.CfnTable.TableInputProperty(
                 name=cfg.glue_table,
-                description="Playback events, schema v1 (CONTEXT §6), written by Firehose",
+                description="Playback events, schema v1 (CONTEXT §6), written by the archiver",
                 table_type="EXTERNAL_TABLE",
                 parameters=projection_parameters(events_location),
                 partition_keys=[glue.CfnTable.ColumnProperty(name=n, type=t) for n, t in PARTITION_KEYS],
                 storage_descriptor=glue.CfnTable.StorageDescriptorProperty(
                     columns=[glue.CfnTable.ColumnProperty(name=n, type=t) for n, t in EVENT_COLUMNS],
                     location=events_location,
-                    input_format=PARQUET_INPUT_FORMAT,
-                    output_format=PARQUET_OUTPUT_FORMAT,
-                    serde_info=glue.CfnTable.SerdeInfoProperty(
-                        serialization_library=PARQUET_SERDE,
-                        parameters={"serialization.format": "1"},
-                    ),
+                    input_format=JSON_INPUT_FORMAT,
+                    output_format=JSON_OUTPUT_FORMAT,
+                    serde_info=glue.CfnTable.SerdeInfoProperty(serialization_library=JSON_SERDE),
                 ),
             ),
         )
