@@ -122,7 +122,7 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 | M5-05 | Recs construct (base): Step Functions, parallel Athena `.sync` → writer | M5-01, M5-04 | todo | | |
 | M5-06 | S5 reconciliation script (Athena vs DynamoDB trending) | M4-02, M5-02 | todo | | |
 | M5-07 | S7 coverage script (100 eligible + 20 new sim users via `/home`) | M5-05, M2-06 | todo | | |
-| M5-08 | Switch the Glue `events` table from Parquet to JSON (§9): JSON SerDe, text input/output formats, `classification=json`; projection unchanged. Update `lake.py`, its docstring and `test_lake.py` | M5-01 | todo | | Added Nov 8 (contract change). The SQL in `athena/` doesn't change |
+| M5-08 | Switch the Glue `events` table from Parquet to JSON (§9): JSON SerDe, text input/output formats, `classification=json`; projection unchanged. Update `lake.py`, its docstring and `test_lake.py` | M5-01 | review | | JSON SerDe + text formats + `classification=json`, exactly as §9; projection, columns, workgroup unchanged; no SerDe options (a malformed line fails the query). SQL test lake is now `.json.gz` per `server_ts` hour, like the archiver; queries unchanged (comments only). Tests + synth pass; not yet deployed to own stage |
 
 ### M6: Platform, Monitoring & Testing
 | ID | Task | Depends on | Status | PR | Notes |
