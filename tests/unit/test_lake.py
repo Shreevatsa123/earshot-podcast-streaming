@@ -85,17 +85,19 @@ def test_events_table_schema_and_storage(dev):
     storage = table_input["StorageDescriptor"]
     assert storage["Columns"] == [{"Name": n, "Type": t} for n, t in EVENT_COLUMNS]
     assert storage["Location"] == f"{LAKE}/events/"
-    assert storage["InputFormat"].endswith("MapredParquetInputFormat")
-    assert storage["OutputFormat"].endswith("MapredParquetOutputFormat")
-    assert storage["SerdeInfo"]["SerializationLibrary"].endswith("ParquetHiveSerDe")
+    # Gzipped JSON Lines, exactly as CONTEXT §9 names them.
+    assert storage["InputFormat"] == "org.apache.hadoop.mapred.TextInputFormat"
+    assert storage["OutputFormat"] == "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
+    # No SerDe parameters: ignore.malformed.json stays off, so a bad line fails loudly.
+    assert storage["SerdeInfo"] == {"SerializationLibrary": "org.openx.data.jsonserde.JsonSerDe"}
 
 
-def test_partition_projection_matches_firehose_prefixes(dev):
+def test_partition_projection_matches_archiver_folders(dev):
     """Projection typos don't error in Athena; they return 0 rows. Pin every value."""
     _, template = dev
     _, table = only(template, "AWS::Glue::Table")
     assert table["Properties"]["TableInput"]["Parameters"] == {
-        "classification": "parquet",
+        "classification": "json",
         "projection.enabled": "true",
         "projection.dt.type": "date",
         "projection.dt.format": "yyyy-MM-dd",
