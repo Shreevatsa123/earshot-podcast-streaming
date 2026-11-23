@@ -2,9 +2,7 @@
 
 Owner: M3 · Stack: base · Tracker: M3-03 · Spec: CONTEXT §5, §9, §10 "Event queues"
 
-STATUS: STUB. Creates nothing yet.
-
-Must create:
+Creates:
 - ``sns.Topic`` named ``cfg.events_topic`` (``earshot-<stage>-events``): a standard topic
   (not FIFO), no encryption. It costs nothing while idle, so it lives in base.
 
@@ -13,7 +11,7 @@ create their own queue and subscription: the hot queue in ``processing.py`` (M4)
 cold queue in ``archiver.py`` (M5).
 
 Exposes (keep this name; ``Ingest``, ``ProcessingBase`` and ``ArchiverBase`` read it):
-- ``topic``. None until implemented.
+- ``topic``: the ``sns.Topic``.
 """
 
 from __future__ import annotations
@@ -27,5 +25,7 @@ from earshot_infra.config import StageConfig
 class EventsTopic(Construct):
     def __init__(self, scope: Construct, construct_id: str, *, cfg: StageConfig) -> None:
         super().__init__(scope, construct_id)
-        self.topic: sns.ITopic | None = None
-        # TODO(M3-03): implement per the docstring.
+        # Standard topic, no encryption (SQS queues subscribe with raw delivery; §10).
+        self.topic: sns.ITopic | None = sns.Topic(
+            self, "Topic", topic_name=cfg.events_topic, display_name="Earshot playback events"
+        )
