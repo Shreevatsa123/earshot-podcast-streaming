@@ -543,6 +543,7 @@ Add the newest entry at the top: `YYYY-MM-DD · M<#> · §<section> · what chan
 | Date | Who | Section | Change |
 |---|---|---|---|
 | 2026-11-20 | M5 | §9, §10 | M5-08: the `events` table reads gzipped JSON Lines as §9 specifies, with **no SerDe options**: `ignore.malformed.json` stays off, so a malformed line fails the query instead of being dropped. The queries in `athena/` keep their 4 parameters unchanged; with `dt` now the date of `server_ts`, the extra day in `dt_to` is only a margin |
+| 2026-11-16 | M3 | §11 | M3-06: run reports go to `runs/<run_id>.run-report.json` (git-ignored) |
 | 2026-11-16 | M3 | §11 | M3-05: `simulator generate --events N` counts lines including duplicates (`round(N × dup-rate)` copies with a later `server_ts`, as a client retry would get); generated events are already enriched. `replay --direct` sets `server_ts` to the publish time unless `--keep-server-ts` |
 | 2026-11-16 | M3 | §7.5 | M3-02: ingest also retries transient SNS errors (not only throttling), and turns any final publish failure into `THROTTLED`, so the client retries instead of losing events |
 | 2026-11-16 | M3 | §6, §7.5 | M3-01: `shared.validate.validate_event(raw, now_ms=, allowed_genres=)` checks the client fields only (not `user_id`/`server_ts`, which ingest sets), accepts integral floats for int fields (browser JSON), and limits ids to 64 chars. Unknown fields are dropped |
