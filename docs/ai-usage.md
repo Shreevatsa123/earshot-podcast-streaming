@@ -24,3 +24,4 @@
 | 2026-11-16 | M3 | Claude (Claude Opus 5.5) | M3-01: event validation (`shared/validate.py`) and its unit tests |
 | 2026-11-16 | M3 | Claude (Claude Opus 5.5) | M3-04: generating `contracts/samples/events.jsonl` and its fixture test |
 | 2026-11-16 | M3 | Claude (Claude Opus 5.5) | M3-03: SNS events topic construct |
+| 2026-11-16 | M3 | Claude (Claude Opus 5.5) | M3-02: ingest Lambda, ingest construct and unit tests |
