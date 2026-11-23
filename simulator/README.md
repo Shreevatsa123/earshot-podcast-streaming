@@ -11,6 +11,9 @@ python -m simulator replay --file events.jsonl --direct --stage <stage>
 
 # Live traffic through POST /events as sim-bot (needs the API, Cognito sim client and sim-bot user)
 python -m simulator run --stage <stage> --users 2000 --rate 500 --duration 600 --seed 42
+
+# S9: buffer storm in one region (180 buffer events/min on top of normal traffic)
+python -m simulator run --stage <stage> --rate 50 --duration 180 --mode buffer-storm --storm-region us-west
 ```
 
 `run` reads the API URL, sim client id and sim-bot password from SSM (`/earshot/<stage>/...`). Override with `--api-url`, `--client-id`, or the `EARSHOT_SIM_PASSWORD` environment variable. It prints progress every 10 s and writes the run report to `runs/<run_id>.run-report.json`.
@@ -22,4 +25,4 @@ python -m simulator run --stage <stage> --users 2000 --rate 500 --duration 600 -
 | `model.py` | Virtual users (2 favorite genres, home region), Zipf episode popularity, sessions (play → heartbeats/seek/buffer → pause/complete), 60 % continue an unfinished episode |
 | `generate.py` | `generate`: JSON Lines fixtures, duplicates, shuffle |
 | `replay.py` | `replay --direct`: 25 events per SNS message, `PublishBatch` |
-| `run.py` | `run`: Cognito login/refresh, rate control, retries, run report |
+| `run.py` | `run`: Cognito login/refresh, rate control, retries, buffer-storm, run report |

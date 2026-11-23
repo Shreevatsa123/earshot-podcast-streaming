@@ -15,7 +15,7 @@ from simulator import DEFAULT_CATALOG, ROOT  # sets up sys.path for shared/
 from shared import clock, names  # noqa: E402
 
 from simulator.generate import generate_events, read_jsonl, write_jsonl  # noqa: E402
-from simulator.model import Catalog, Population  # noqa: E402
+from simulator.model import Catalog, Population, check_region  # noqa: E402
 
 SIM_USERNAME = "sim-bot@earshot.test"
 
@@ -83,6 +83,7 @@ def cmd_replay(args: argparse.Namespace) -> int:
 def cmd_run(args: argparse.Namespace) -> int:
     from simulator.run import HttpEventsApi, TokenProvider, run
 
+    storm_region = check_region(args.storm_region)
     ssm = _boto3_client("ssm")
     api_url = args.api_url or _ssm_value(ssm, names.ssm_api_url(args.stage))
     client_id = args.client_id or _ssm_value(ssm, names.ssm_sim_client_id(args.stage))
@@ -96,7 +97,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     population = Population(Catalog.load(args.catalog), args.users, rng)
     print(
         f"run: stage={args.stage} users={args.users} rate={args.rate}/s duration={args.duration}s "
-        f"api={api_url}",
+        f"mode={args.mode} api={api_url}",
         flush=True,
     )
     report = run(
@@ -105,6 +106,9 @@ def cmd_run(args: argparse.Namespace) -> int:
         tokens=tokens.get,
         rate=args.rate,
         duration_sec=args.duration,
+        mode=args.mode,
+        storm_region=storm_region,
+        storm_rate=args.storm_rate,
         workers=args.workers,
     )
     report["stage"] = args.stage
@@ -149,6 +153,9 @@ def build_parser() -> argparse.ArgumentParser:
     run_.add_argument("--rate", type=float, default=100, help="events per second")
     run_.add_argument("--duration", type=float, default=60, help="seconds")
     run_.add_argument("--seed", type=int, default=42)
+    run_.add_argument("--mode", choices=["normal", "buffer-storm"], default="normal")
+    run_.add_argument("--storm-region", default="us-west")
+    run_.add_argument("--storm-rate", type=float, default=3.0, help="buffer events/s in buffer-storm mode")
     run_.add_argument("--workers", type=int, default=16)
     run_.add_argument("--api-url", help="default: SSM /earshot/<stage>/api/url")
     run_.add_argument("--client-id", help="default: SSM /earshot/<stage>/cognito/sim-client-id")

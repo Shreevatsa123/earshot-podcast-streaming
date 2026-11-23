@@ -100,7 +100,7 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 | M3-05 | Simulator `generate` (shuffle, dup-rate) + `replay --direct` (publishes to the SNS topic, §11) | M3-04, M3-03 | review | [#23](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/23) | `generate`: `--events` = lines incl. duplicates (`round(N × dup-rate)` copies with a later `server_ts`), deterministic per `--seed`. `replay --direct`: 25 events per message, `PublishBatch` × 10, retries, `server_ts` = publish time unless `--keep-server-ts`. Unit-tested with a fake SNS; verified in stage `bhargav` (Nov 23): `events.jsonl` → 40 messages, 1,000 events, 0 failed |
 | M3-06 | Simulator `run`: virtual users, affinity + Zipf, rate control, token refresh, run report | M1-03, M2-04, M3-02 | review | [#24](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/24) | Code + unit tests done (fake API): Cognito `USER_PASSWORD_AUTH` + refresh, 25-event batches on a thread pool, back-pressure, retries `THROTTLED`/429/5xx × 3, run report. End-to-end test needs M1-03 (sim-bot) and M2-04 (route) |
 | M3-07 | Simulator EC2 construct (pipeline): t3.micro AL2023, no inbound, SSM, S3 asset | M6-01 | todo | | |
-| M3-08 | `buffer-storm` mode | M3-06 | todo | | |
+| M3-08 | `buffer-storm` mode | M3-06 | review | [#25](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/25) | `--mode buffer-storm --storm-region <r> [--storm-rate 3]`: extra distinct `buffer` events at 3/s (180/min) in one region on top of normal traffic. A unit test checks ≥ 100/min |
 
 ### M4: Real-time Processing
 | ID | Task | Depends on | Status | PR | Notes |
