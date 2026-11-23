@@ -18,6 +18,17 @@ python -m simulator run --stage <stage> --rate 50 --duration 180 --mode buffer-s
 
 `run` reads the API URL, sim client id and sim-bot password from SSM (`/earshot/<stage>/...`). Override with `--api-url`, `--client-id`, or the `EARSHOT_SIM_PASSWORD` environment variable. It prints progress every 10 s and writes the run report to `runs/<run_id>.run-report.json`.
 
+## On the simulator instance (pipeline stack)
+
+```bash
+make pipeline-up STAGE=<stage>
+# AWS console → EC2 → earshot-<stage>-simulator → Connect → Session Manager, then:
+sudo -iu ec2-user
+cd /opt/earshot && python3.11 -m simulator run --stage <stage> --users 2000 --rate 500 --duration 600
+# when done (from your laptop):
+make pipeline-down STAGE=<stage>
+```
+
 ## Files
 
 | File | What |
