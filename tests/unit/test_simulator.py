@@ -1,4 +1,4 @@
-"""M3-05/06: simulator generate, replay and run (CONTEXT §11). No AWS."""
+"""M3-05/06/08: simulator generate, replay, run and buffer-storm (CONTEXT §11). No AWS."""
 
 import json
 import random
@@ -224,3 +224,17 @@ def test_run_rate_and_report(catalog):
     for key in ("run_id", "start_ms", "end_ms", "sent", "accepted", "rejected_by_reason"):
         assert key in report
     assert all(e["user_id"].startswith("sim-") for e in api.received)
+
+
+def test_buffer_storm_mode(catalog):
+    clock, api = FakeClock(), FakeApi()
+    pop = Population(catalog, 200, random.Random(42))
+    report = run(
+        pop, api=api, tokens=tokens, rate=50, duration_sec=60, mode="buffer-storm",
+        storm_region="ap-south", storm_rate=3,
+        now_ms=clock.now_ms, monotonic=clock.monotonic, sleep=clock.sleep,
+    )  # fmt: skip
+    storm = [e for e in api.received if e["event_type"] == "buffer" and e["region"] == "ap-south"]
+    assert len(storm) >= 100  # ≥ 100 buffer events per minute in one region (§11)
+    assert report["storm_events"] >= 170
+    assert len({e["event_id"] for e in storm}) == len(storm)  # distinct, so QoE counts them all
