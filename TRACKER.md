@@ -69,7 +69,7 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 | ID | Task | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|
 | M1-01 | Vite + React + TS scaffold in `web/`, runtime `config.json` loader, `VITE_USE_MOCKS` mode (§9) | M2-07 *(soft)* | todo | | |
-| M1-02 | Auth construct: user pool, groups, web + sim clients, managed login domain, SSM params (§9) | M6-01 | todo | | |
+| M1-02 | Auth construct: user pool, groups, web + sim clients, managed login domain, SSM params (§9) | M6-01 | review | [#30](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/30) | User pool (email sign-in, self sign-up, Essentials plan), groups `listeners` + `simulator`; `web` client (code + PKCE, no secret, callbacks = CloudFront URL when M1-04 lands + localhost:5173); `sim` client (`USER_PASSWORD_AUTH` + refresh); managed login domain `cfg.cognito_domain_prefix` + default style; 3 SSM params. `tests/unit/test_auth.py`; synth passes. Not yet deployed to own stage |
 | M1-03 | Script: create `sim-bot@earshot.test` in `simulator` group, password from SSM | M1-02 | todo | | |
 | M1-04 | Web construct: private bucket, CloudFront + OAC, SPA routing, `config.json` deployment | M6-01 | todo | | |
 | M1-05 | Login via `react-oidc-context` (code + PKCE); access token on API calls | M1-02, M1-04 | todo | | |
