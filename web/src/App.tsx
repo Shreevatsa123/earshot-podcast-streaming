@@ -79,7 +79,6 @@ function Footer() {
       <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-12 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-[#927DB5]">
         <div className="flex items-center gap-3">
           <span className="brand-gradient font-display font-bold tracking-[0.14em]">EARSHOT</span>
-          <span aria-hidden="true">·</span>
           <span>Every story, within earshot.</span>
         </div>
         <nav aria-label="Footer" className="flex flex-wrap items-center gap-5">
