@@ -1,22 +1,14 @@
 // Typed API client for the Earshot HTTP API (CONTEXT §7).
 //
 // Every read route is exposed here. In mock mode (VITE_USE_MOCKS=true) each call
-// resolves the committed fixture instead of hitting the network, so the whole UI
-// can be built before M2's API and M3's ingest exist. M1-09 removes the mock path.
+// answers from the committed fixtures instead of the network (see mocks.ts), so the UI
+// can be built before M2's API exists. M1-09 switches the app to the real API.
 //
 // Auth: the real API needs `Authorization: Bearer <access token>` on every route
-// except GET /health (§7.1). The token getter is injected by the auth layer (M1-05);
-// until then it returns null and mock mode is used.
+// except GET /health (§7.1). The auth layer (M1-05) injects the token getter; until
+// then it returns null and mock mode is used.
 
 import { getConfig, USE_MOCKS } from "./config";
-import {
-  mockGenres,
-  mockHome,
-  mockProgress,
-  mockShowDetail,
-  mockShows,
-  mockTrending,
-} from "./mocks";
 import type {
   GenreId,
   GenresResponse,
@@ -45,9 +37,16 @@ export class ApiRequestError extends Error {
   }
 }
 
-/** Simulate a small network delay so mock-mode loading states are visible. */
-function mock<T>(value: T, ms = 150): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), ms));
+type Mocks = typeof import("./mocks");
+
+/**
+ * Answer from the fixtures after a short delay, so loading states are visible.
+ * The dynamic import keeps the fixtures out of a normal (non-mock) build.
+ */
+async function mock<T>(pick: (m: Mocks) => T, ms = 150): Promise<T> {
+  const mocks = await import("./mocks");
+  await new Promise((resolve) => setTimeout(resolve, ms));
+  return pick(mocks);
 }
 
 async function request<T>(path: string): Promise<T> {
@@ -77,31 +76,31 @@ async function request<T>(path: string): Promise<T> {
 // ---- read routes (§7.3, §7.4) ----------------------------------------------
 
 export function getHome(): Promise<HomeResponse> {
-  if (USE_MOCKS) return mock(mockHome);
+  if (USE_MOCKS) return mock((m) => m.home);
   return request<HomeResponse>("/home");
 }
 
 export function getGenres(): Promise<GenresResponse> {
-  if (USE_MOCKS) return mock(mockGenres);
+  if (USE_MOCKS) return mock((m) => m.genres);
   return request<GenresResponse>("/genres");
 }
 
 export function getShows(genre: GenreId, limit = 20): Promise<ShowsResponse> {
-  if (USE_MOCKS) return mock(mockShows);
+  if (USE_MOCKS) return mock((m) => m.shows(genre, limit));
   return request<ShowsResponse>(`/shows?genre=${encodeURIComponent(genre)}&limit=${limit}`);
 }
 
 export function getShowDetail(showId: string): Promise<ShowDetailResponse> {
-  if (USE_MOCKS) return mock(mockShowDetail);
+  if (USE_MOCKS) return mock((m) => m.showDetail(showId));
   return request<ShowDetailResponse>(`/shows/${encodeURIComponent(showId)}`);
 }
 
 export function getTrending(limit = 10): Promise<TrendingResponse> {
-  if (USE_MOCKS) return mock(mockTrending);
+  if (USE_MOCKS) return mock((m) => ({ ...m.trending, items: m.trending.items.slice(0, limit) }));
   return request<TrendingResponse>(`/trending?limit=${limit}`);
 }
 
 export function getProgress(episodeId: string): Promise<ProgressResponse> {
-  if (USE_MOCKS) return mock(mockProgress);
+  if (USE_MOCKS) return mock((m) => m.progress(episodeId));
   return request<ProgressResponse>(`/progress/${encodeURIComponent(episodeId)}`);
 }

@@ -1,82 +1,146 @@
-import { useEffect, useState } from "react";
-import { getHome } from "../lib/api";
-import type { EpisodeCard, HomeResponse } from "../types/contracts";
-import { Row } from "../components/Row";
-import { usePlayer } from "../components/PlayerContext";
+import { useMemo, useState } from "react";
+import { AlertTriangle } from "lucide-react";
+import { getHome, getShows } from "../lib/api";
+import { GENRES, genreName } from "../lib/genres";
+import { useAsync } from "../lib/useAsync";
+import type { EpisodeCard, GenreId, HomeResponse, HomeRow } from "../types/contracts";
+import { HeroBillboard } from "../components/HeroBillboard";
+import { ContinueCard, EpisodeTile, ShowTile } from "../components/Cards";
+import { Shelf } from "../components/Shelf";
+
+const FEATURED_COUNT = 4;
 
 /**
- * Home page (CONTEXT §7.4). Renders a Netflix billboard from the first trending item
- * plus one row per `rows[]` entry, in order. Shows a banner when `degraded` is true.
- * Full page polish (genre browse links, etc.) is M1-06; this proves the scaffold end
- * to end against the mock fixture.
+ * Home (GET /home, CONTEXT §7.4): hero spotlight, genre filter, then one row per
+ * `rows[]` entry in the order the API sends them.
  */
 export function Home() {
-  const { play } = usePlayer();
-  const [data, setData] = useState<HomeResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const home = useAsync(getHome, []);
+  const [heroIndex, setHeroIndex] = useState(0);
+  const [genre, setGenre] = useState<GenreId | null>(null);
 
-  useEffect(() => {
-    let active = true;
-    getHome()
-      .then((res) => active && setData(res))
-      .catch((err) => active && setError(err.message ?? "Failed to load home"));
-    return () => {
-      active = false;
-    };
-  }, []);
+  const featured = useMemo(() => (home.status === "ready" ? pickFeatured(home.data) : []), [home]);
 
-  if (error) return <div className="error">Could not load home. {error}</div>;
-  if (!data) return <div className="loading">Loading…</div>;
-
-  const hero = pickHero(data);
+  if (home.status === "loading") return <PageMessage text="Loading your home page…" />;
+  if (home.status === "error") return <PageMessage text={`Couldn't load your home page. ${home.error}`} />;
 
   return (
     <>
-      {hero && <Hero episode={hero} onPlay={play} />}
-      {data.degraded && (
-        <div className="degraded-banner">
-          Personalized picks are unavailable right now, showing popular episodes instead.
+      <HeroBillboard featured={featured} activeIndex={heroIndex} onSelectIndex={setHeroIndex} />
+
+      <GenreFilter selected={genre} onSelect={setGenre} />
+
+      {genre ? (
+        <GenreShows genre={genre} />
+      ) : (
+        <div className="space-y-2 pt-2">
+          {home.data.degraded && (
+            <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-12">
+              <p className="flex items-center gap-2 rounded-lg border border-purple-300/20 bg-[#1C0E34]/80 px-4 py-3 text-sm text-[#DCD0EE]">
+                <AlertTriangle className="w-4 h-4 text-[#D8B4FE] shrink-0" aria-hidden="true" />
+                Personalized picks are taking a break, so you're seeing what's popular on Earshot.
+              </p>
+            </div>
+          )}
+          {home.data.rows.map((row) => (
+            <HomeShelf key={row.id} row={row} />
+          ))}
         </div>
       )}
-      <div className="rows">
-        {data.rows.map((row) => (
-          <Row key={row.id} title={row.title} items={row.items} onPlay={play} />
-        ))}
-      </div>
     </>
   );
 }
 
-function pickHero(data: HomeResponse): EpisodeCard | null {
-  const trending = data.rows.find((r) => r.source === "trending");
-  if (trending && trending.items.length > 0) return trending.items[0];
-  const first = data.rows.find((r) => r.items.length > 0);
-  return first ? first.items[0] : null;
+/** Hero spotlight: the top trending episodes, or the first items if trending is empty. */
+function pickFeatured(home: HomeResponse): EpisodeCard[] {
+  const trending = home.rows.find((r) => r.source === "trending" && r.items.length > 0);
+  const source = trending ?? home.rows.find((r) => r.items.length > 0);
+  return source ? source.items.slice(0, FEATURED_COUNT) : [];
 }
 
-function Hero({
-  episode,
-  onPlay,
-}: {
-  episode: EpisodeCard;
-  onPlay: (ep: EpisodeCard) => void;
-}) {
+function HomeShelf({ row }: { row: HomeRow }) {
+  if (row.items.length === 0) return null;
+  switch (row.source) {
+    case "progress":
+      return (
+        <Shelf title={row.title} subtitle="Pick up right where you paused">
+          {row.items.map((ep) => (
+            <ContinueCard key={ep.episode_id} episode={ep} />
+          ))}
+        </Shelf>
+      );
+    case "trending":
+      return (
+        <Shelf title="Top Podcasts Today" subtitle="The most-played episodes on Earshot right now">
+          {row.items.map((ep, idx) => (
+            <EpisodeTile key={ep.episode_id} episode={ep} rank={idx + 1} />
+          ))}
+        </Shelf>
+      );
+    case "personalized":
+      return (
+        <Shelf title={row.title} subtitle="Recommended for you from what people with similar taste play">
+          {row.items.map((ep) => (
+            <EpisodeTile key={ep.episode_id} episode={ep} />
+          ))}
+        </Shelf>
+      );
+    default:
+      return (
+        <Shelf title={row.title} subtitle="What everyone's listening to this week">
+          {row.items.map((ep) => (
+            <EpisodeTile key={ep.episode_id} episode={ep} />
+          ))}
+        </Shelf>
+      );
+  }
+}
+
+function GenreFilter({ selected, onSelect }: { selected: GenreId | null; onSelect: (g: GenreId | null) => void }) {
+  const chips: { id: GenreId | null; name: string }[] = [{ id: null, name: "All" }, ...GENRES];
   return (
-    <section className="hero" style={{ backgroundImage: `url(${episode.image_url})` }}>
-      <div className="hero__inner">
-        <div className="hero__eyebrow">▶ Top of the charts</div>
-        <h1 className="hero__title">{episode.title}</h1>
-        <div className="hero__meta">
-          {episode.show_title}
-          {episode.plays !== undefined ? ` · ${episode.plays} plays today` : ""}
-        </div>
-        <div className="hero__actions">
-          <button className="btn btn--play" onClick={() => onPlay(episode)}>
-            ▶ Play
-          </button>
-          <button className="btn btn--ghost">ℹ More Info</button>
-        </div>
+    <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-12 pt-4 pb-3">
+      <div role="tablist" aria-label="Filter by genre" className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+        {chips.map((chip) => {
+          const isActive = selected === chip.id;
+          return (
+            <button
+              key={chip.name}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => onSelect(chip.id)}
+              className={`px-4 py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-purple-400 ${
+                isActive
+                  ? "bg-gradient-to-r from-[#9333EA] to-[#A855F7] text-white shadow-[0_6px_22px_rgba(147,51,234,0.38)]"
+                  : "bg-[#190D30]/85 hover:bg-[#271449] text-[#CAB9E5] border border-purple-300/12"
+              }`}
+            >
+              {chip.name}
+            </button>
+          );
+        })}
       </div>
-    </section>
+    </div>
   );
+}
+
+function GenreShows({ genre }: { genre: GenreId }) {
+  const state = useAsync(() => getShows(genre, 20), [genre]);
+  if (state.status === "loading") return <PageMessage text="Loading shows…" compact />;
+  if (state.status === "error") return <PageMessage text={`Couldn't load shows. ${state.error}`} compact />;
+  const { shows } = state.data;
+  return (
+    <div className="pt-2">
+      <Shelf title={genreName(genre)} subtitle={`${shows.length} ${shows.length === 1 ? "show" : "shows"} in ${genreName(genre)}`}>
+        {shows.map((show) => (
+          <ShowTile key={show.show_id} show={show} />
+        ))}
+      </Shelf>
+    </div>
+  );
+}
+
+function PageMessage({ text, compact = false }: { text: string; compact?: boolean }) {
+  return <div className={`${compact ? "py-16" : "pt-40 pb-24"} text-center text-sm text-[#A894C9]`}>{text}</div>;
 }

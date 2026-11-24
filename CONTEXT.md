@@ -542,6 +542,7 @@ Add the newest entry at the top: `YYYY-MM-DD · M<#> · §<section> · what chan
 
 | Date | Who | Section | Change |
 |---|---|---|---|
+| 2026-11-24 | M1 | §3 | M1-01: the web app is styled with **Tailwind CSS v4** and uses **lucide-react** icons (both frontend-only; nothing changes for Lambdas or infra). Mock mode builds `/shows` and `/shows/{id}` responses from `catalog.json` with the §7.3 shape, and the mock fixtures are left out of normal builds |
 | 2026-11-20 | M5 | §9, §10 | M5-08: the `events` table reads gzipped JSON Lines as §9 specifies, with **no SerDe options**: `ignore.malformed.json` stays off, so a malformed line fails the query instead of being dropped. The queries in `athena/` keep their 4 parameters unchanged; with `dt` now the date of `server_ts`, the extra day in `dt_to` is only a margin |
 | 2026-11-16 | M3 | §11 | M3-08: `run --mode buffer-storm` adds `--storm-rate` (default 3/s = 180/min) distinct buffer events in the storm region on top of normal traffic |
 | 2026-11-16 | M3 | §11 | M3-06: run reports go to `runs/<run_id>.run-report.json` (git-ignored) |

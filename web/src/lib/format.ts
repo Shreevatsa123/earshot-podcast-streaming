@@ -11,6 +11,15 @@ export function formatDuration(totalSec: number): string {
   return hr > 0 ? `${hr}:${mm}:${ss}` : `${min}:${ss}`;
 }
 
+/** Seconds -> "1h 05m" or "42 min" (rounded up to a whole minute). */
+export function formatMinutesLabel(totalSec: number): string {
+  const minutes = Math.max(1, Math.ceil(totalSec / 60));
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${h}h ${m.toString().padStart(2, "0")}m`;
+}
+
 /** Fraction 0..1 of the episode already listened to. */
 export function progressFraction(position?: number, duration?: number): number {
   if (!position || !duration || duration <= 0) return 0;

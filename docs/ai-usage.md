@@ -29,4 +29,4 @@
 | 2026-11-16 | M3 | Claude (Claude Opus 5.5) | M3-06: simulator `run` (Cognito auth, rate control, retries, run report) and unit tests |
 | 2026-11-16 | M3 | Claude (Claude Opus 5.5) | M3-08: simulator `buffer-storm` mode and unit test |
 | 2026-11-16 | M3 | Claude (Claude Opus 5.5) | M3-07: simulator EC2 construct |
-| 2026-11-07 | M1 | Kiro (Claude) | M1-01 web scaffold: Vite + React + TS app, runtime `config.json` loader, `VITE_USE_MOCKS` mode against `contracts/samples`, Netflix-themed shell and Home page |
+| 2026-11-07 | M1 | Kiro (Claude) | M1-01 web scaffold: Vite + React + TS app, runtime `config.json` loader, `VITE_USE_MOCKS` mode against `contracts/samples`, purple theme adapted from the team's Nocturne design, Home page, show dialog, search and player dock |
