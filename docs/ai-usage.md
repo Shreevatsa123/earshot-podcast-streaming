@@ -29,3 +29,4 @@
 | 2026-11-16 | M3 | Claude (Claude Opus 5.5) | M3-06: simulator `run` (Cognito auth, rate control, retries, run report) and unit tests |
 | 2026-11-16 | M3 | Claude (Claude Opus 5.5) | M3-08: simulator `buffer-storm` mode and unit test |
 | 2026-11-16 | M3 | Claude (Claude Opus 5.5) | M3-07: simulator EC2 construct |
+| 2026-11-24 | M1 | Kiro (Claude) | M1-02 Cognito auth construct (user pool, groups, web and sim clients, managed login domain and style, SSM params) and unit tests |
