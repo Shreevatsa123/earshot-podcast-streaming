@@ -140,3 +140,19 @@ def test_archiver_exposes_its_resources(stacks):
     assert isinstance(construct, archiver.ArchiverBase)
     assert construct.function is not None and construct.queue is not None and construct.dlq is not None
 
+
+def test_trigger_lives_in_the_pipeline_with_the_contract_settings(stacks):
+    """It polls even when the queue is empty, so it comes down with the pipeline (CONTEXT §10)."""
+    _, base, pipeline = stacks
+    base.resource_count_is("AWS::Lambda::EventSourceMapping", 0)
+    mappings = pipeline.find_resources("AWS::Lambda::EventSourceMapping")
+    archiver_mappings = [
+        m["Properties"] for m in mappings.values() if m["Properties"]["FunctionName"] == f"earshot-{STAGE}-archiver"
+    ]
+    assert len(archiver_mappings) == 1
+    mapping = archiver_mappings[0]
+    assert mapping["EventSourceArn"] == f"arn:aws:sqs:us-east-1:{ACCOUNT}:earshot-{STAGE}-cold"  # by name, no export
+    assert mapping["BatchSize"] == 1000
+    assert mapping["MaximumBatchingWindowInSeconds"] == 60
+    assert mapping["FunctionResponseTypes"] == ["ReportBatchItemFailures"]
+    assert mapping["ScalingConfig"] == {"MaximumConcurrency": 2}

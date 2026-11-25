@@ -103,9 +103,25 @@ class ArchiverBase(Construct):
 class ArchiverPipeline(Construct):
     """Cold queue -> archiver trigger (SQS event source mapping). Stack: **pipeline**.
 
-    STATUS: STUB. Comes in the next commit.
+    Batch size 1000, 60 s batching window, per-message failure reporting, at most 2
+    concurrent archivers (CONTEXT §10). The queue and function are referenced by ARN from
+    ``cfg``, never as CDK objects, so the stacks stay decoupled (CONTEXT §5).
+
+    Lambda polls the queue even when it's empty, which is why this lives in the pipeline
+    stack and comes down after each session.
+    Exposes: nothing.
     """
 
     def __init__(self, scope: Construct, construct_id: str, *, cfg: StageConfig) -> None:
         super().__init__(scope, construct_id)
-        # TODO(M5-02): the SQS trigger with the CONTEXT §10 settings.
+        function = lambda_.Function.from_function_arn(self, "Archiver", cfg.function_arn("archiver"))
+        lambda_.EventSourceMapping(
+            self,
+            "ColdQueueTrigger",
+            target=function,
+            event_source_arn=cfg.cold_queue_arn,
+            batch_size=BATCH_SIZE,
+            max_batching_window=BATCHING_WINDOW,
+            report_batch_item_failures=True,
+            max_concurrency=MAX_CONCURRENCY,
+        )
