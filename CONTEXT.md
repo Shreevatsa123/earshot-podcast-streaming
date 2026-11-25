@@ -542,6 +542,7 @@ Add the newest entry at the top: `YYYY-MM-DD · M<#> · §<section> · what chan
 
 | Date | Who | Section | Change |
 |---|---|---|---|
+| 2026-11-24 | M2 | §7.1 | M2-04: routes need a token by default but **no OAuth scopes** (web and sim access tokens carry different scopes). `/earshot/<stage>/api/url` has no trailing slash, so clients append paths like `/home`. Without a user pool the HTTP API isn't created (never an open API) |
 | 2026-11-24 | M1 | §9 | M1-02: the user pool uses the **Essentials** plan (not Lite): managed login needs Essentials, Lite only has the classic hosted UI. Both are free up to 10k MAU. The web client allows only `ALLOW_REFRESH_TOKEN_AUTH` as a direct flow (sign-in is on the managed login pages); the sim client allows `USER_PASSWORD_AUTH` + refresh. The web client gets the default managed login style (the login page needs one). Nobody is added to `listeners` automatically: only `simulator` membership matters to the API (§7.2) |
 | 2026-11-20 | M5 | §9, §10 | M5-08: the `events` table reads gzipped JSON Lines as §9 specifies, with **no SerDe options**: `ignore.malformed.json` stays off, so a malformed line fails the query instead of being dropped. The queries in `athena/` keep their 4 parameters unchanged; with `dt` now the date of `server_ts`, the extra day in `dt_to` is only a margin |
 | 2026-11-16 | M3 | §11 | M3-08: `run --mode buffer-storm` adds `--storm-rate` (default 3/s = 180/min) distinct buffer events in the storm region on top of normal traffic |
