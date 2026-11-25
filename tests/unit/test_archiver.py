@@ -1,13 +1,15 @@
-"""M5-02: the archiver's batch planning (CONTEXT §9, §10). No AWS calls here."""
+"""M5-02: the archiver (CONTEXT §9, §10): batch planning, then the S3 write with moto."""
 
 from __future__ import annotations
 
 import gzip
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 import pytest
+from archiver import handler
 from archiver.handler import (
     decode_message,
     encode_lines,
@@ -16,6 +18,7 @@ from archiver.handler import (
     object_key,
     plan_batch,
 )
+from botocore.exceptions import ClientError
 
 from shared.validate import EVENT_FIELDS
 
@@ -190,3 +193,111 @@ def test_count_events_sql_reads_the_archivers_files(tmp_path):
     params = ["2026-11-14", "2026-11-15", NOV_14, NOV_14 + 24 * HOUR]
     assert con.execute(sql, params).fetchall() == [(1000, 950)]
 
+
+# ---- main: the S3 write -------------------------------------------------------------------
+
+BUCKET = "earshot-test-lake"
+KEY_RE = re.compile(r"^events/dt=\d{4}-\d{2}-\d{2}/hour=\d{2}/[0-9a-f-]{36}\.json\.gz$")
+
+
+@pytest.fixture
+def lake(monkeypatch):
+    """A moto S3 bucket named in LAKE_BUCKET, like the function's env (CONTEXT §9)."""
+    boto3 = pytest.importorskip("boto3")
+    moto = pytest.importorskip("moto")
+    for key, value in {"AWS_ACCESS_KEY_ID": "test", "AWS_SECRET_ACCESS_KEY": "test", "AWS_DEFAULT_REGION": "us-east-1"}.items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.delenv("AWS_PROFILE", raising=False)
+    monkeypatch.setenv("LAKE_BUCKET", BUCKET)
+    with moto.mock_aws():
+        s3 = boto3.client("s3", region_name="us-east-1")
+        s3.create_bucket(Bucket=BUCKET)
+        yield s3
+
+
+def lake_objects(s3: Any) -> dict[str, list[dict[str, Any]]]:
+    """Every object in the bucket: key -> its decoded JSON lines."""
+    listing = s3.list_objects_v2(Bucket=BUCKET).get("Contents", [])
+    return {
+        item["Key"]: [
+            json.loads(line)
+            for line in gzip.decompress(s3.get_object(Bucket=BUCKET, Key=item["Key"])["Body"].read())
+            .decode("utf-8")
+            .splitlines()
+        ]
+        for item in listing
+    }
+
+
+def last_log(capsys) -> dict[str, Any]:
+    lines = [line for line in capsys.readouterr().out.splitlines() if line.startswith("{")]
+    assert len(lines) == 1, "the archiver logs once per batch"
+    return json.loads(lines[0])
+
+
+def test_main_writes_one_gzipped_file_per_hour(lake, capsys):
+    result = handler.main(
+        {"Records": [record([sample(NOV_14 + 10), sample(NOV_14 + HOUR + 10)], "m1"), record([sample(NOV_14 + 20)], "m2")]},
+        None,
+    )
+    assert result == {"batchItemFailures": []}
+    objects = lake_objects(lake)
+    assert all(KEY_RE.match(key) for key in objects)
+    assert sorted((key.split("/")[1] + "/" + key.split("/")[2], len(lines)) for key, lines in objects.items()) == [
+        ("dt=2026-11-14/hour=00", 2),
+        ("dt=2026-11-14/hour=01", 1),
+    ]
+    assert all(list(line) == list(EVENT_FIELDS) for lines in objects.values() for line in lines)
+    summary = last_log(capsys)
+    assert summary["level"] == "INFO"
+    assert (summary["events"], summary["files_written"], summary["failed_messages"]) == (3, 2, 0)
+
+
+def test_main_reports_only_the_malformed_message(lake):
+    result = handler.main({"Records": [record([sample(NOV_14)], "good"), {"messageId": "bad", "body": "{"}]}, None)
+    assert result == {"batchItemFailures": [{"itemIdentifier": "bad"}]}
+    assert len(lake_objects(lake)) == 1
+
+
+def test_main_fails_the_whole_batch_when_s3_fails(lake, monkeypatch, capsys):
+    monkeypatch.setenv("LAKE_BUCKET", "no-such-bucket")
+    records = [record([sample(NOV_14)], "m1"), record([sample(NOV_14)], "m2"), {"messageId": "bad", "body": "{"}]
+    result = handler.main({"Records": records}, None)
+    assert result == {"batchItemFailures": [{"itemIdentifier": m} for m in ("m1", "m2", "bad")]}
+    summary = last_log(capsys)
+    assert (summary["level"], summary["write_error"]) == ("ERROR", "NoSuchBucket")
+
+
+class FlakyS3:
+    """A stand-in S3 client: the first put succeeds, then every put fails."""
+
+    def __init__(self) -> None:
+        self.keys: list[str] = []
+
+    def put_object(self, *, Bucket: str, Key: str, Body: bytes) -> dict[str, Any]:  # noqa: N803 (boto3 names)
+        if self.keys:
+            raise ClientError({"Error": {"Code": "SlowDown", "Message": "try later"}}, "PutObject")
+        self.keys.append(Key)
+        return {}
+
+
+def test_main_fails_the_whole_batch_even_after_a_partial_write(monkeypatch):
+    """§10: file 1 stays written; the retry writes it again, and the queries count DISTINCT."""
+    flaky = FlakyS3()
+    monkeypatch.setattr(handler.boto3, "client", lambda service: flaky)
+    monkeypatch.setenv("LAKE_BUCKET", BUCKET)
+    result = handler.main({"Records": [record([sample(NOV_14), sample(NOV_14 + HOUR)], "m1")]}, None)
+    assert result == {"batchItemFailures": [{"itemIdentifier": "m1"}]}
+    assert len(flaky.keys) == 1
+
+
+def test_main_with_nothing_to_write_makes_no_s3_call(monkeypatch):
+    def no_s3(service: str) -> Any:
+        raise AssertionError("no S3 client needed")
+
+    monkeypatch.setattr(handler.boto3, "client", no_s3)
+    monkeypatch.delenv("LAKE_BUCKET", raising=False)
+    assert handler.main({"Records": []}, None) == {"batchItemFailures": []}
+    assert handler.main({"Records": [{"messageId": "bad", "body": "{"}]}, None) == {
+        "batchItemFailures": [{"itemIdentifier": "bad"}]
+    }

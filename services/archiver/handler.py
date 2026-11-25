@@ -17,19 +17,25 @@ For each batch:
 - if any S3 write fails, every message in the batch is reported as failed (§10). The
   retry may write some events twice, which is fine: every query counts DISTINCT event_id.
 
-STATUS: the batch planning below is implemented; the S3 write in ``main`` is next.
+The archiver emits no custom metric (§10 has none for it). It logs one JSON line per
+batch; a write failure is logged at ERROR level.
 """
 
 from __future__ import annotations
 
 import gzip
 import json
+import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-from shared.names import LAKE_EVENTS_PREFIX
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError
+
+from shared import log
+from shared.names import LAKE_EVENTS_PREFIX, required_env
 from shared.validate import EVENT_FIELDS
 
 
@@ -120,6 +126,50 @@ def encode_lines(lines: list[str]) -> bytes:
     return gzip.compress(("\n".join(lines) + "\n").encode("utf-8"))
 
 
+def write_files(s3: Any, bucket: str, plan: BatchPlan) -> int:
+    """Write one ``.json.gz`` object per hour folder; returns how many were written.
+
+    No ``ContentEncoding`` header: Athena decompresses by the ``.gz`` extension, and the
+    header makes some download tools unzip the file on the way.
+    """
+    written = 0
+    for folder, lines in plan.lines_by_folder.items():
+        s3.put_object(Bucket=bucket, Key=object_key(folder, str(uuid.uuid4())), Body=encode_lines(lines))
+        written += 1
+    return written
+
+
 def main(event: dict[str, Any], context: Any) -> dict[str, Any]:
-    """Must return ``{"batchItemFailures": [...]}`` (CONTEXT §10)."""
-    raise NotImplementedError("M5-02: the S3 write comes next")
+    """Archive an SQS batch and report failed messages by ID (CONTEXT §10)."""
+    records = event.get("Records", [])
+    plan = plan_batch(records if isinstance(records, list) else [])
+    failed_ids = list(plan.malformed_message_ids)
+    files_written = 0
+    write_error: str | None = None
+    if plan.lines_by_folder:
+        try:
+            files_written = write_files(boto3.client("s3"), required_env("LAKE_BUCKET"), plan)
+        except (BotoCoreError, ClientError) as error:
+            # §10: one failed write fails the whole batch. Files already written stay;
+            # the retry writes their events again, and the queries count DISTINCT event_id.
+            failed_ids = list(plan.message_ids)
+            write_error = (
+                error.response.get("Error", {}).get("Code", "ClientError")
+                if isinstance(error, ClientError)
+                else type(error).__name__
+            )
+
+    log.log(
+        "archiver batch complete",
+        level="ERROR" if write_error else "INFO",
+        records=len(plan.message_ids) + plan.unidentified_records,
+        events=plan.events,
+        files_written=files_written,
+        folders=sorted(plan.lines_by_folder),
+        skipped_events=plan.skipped_events,
+        malformed_messages=plan.malformed_message_ids,
+        unidentified_records=plan.unidentified_records,
+        write_error=write_error,
+        failed_messages=len(failed_ids),
+    )
+    return {"batchItemFailures": [{"itemIdentifier": message_id} for message_id in failed_ids]}
