@@ -32,3 +32,4 @@
 | 2026-11-24 | M1 | Kiro (Claude) | M1-02 Cognito auth construct (user pool, groups, web and sim clients, managed login domain and style, SSM params) and unit tests |
 | 2026-11-24 | M2 | Claude Code (Claude Opus 5.5) | M2-03 `seed_catalog.py` (catalog → DynamoDB items) and moto tests |
 | 2026-11-24 | M2 | Claude Code (Claude Opus 5.5) | M2-04 API construct (HTTP API, JWT authorizer, routes, CORS, throttling), unit tests, stage checks |
+| 2026-11-24 | M2 | Claude Code (Claude Opus 5.5) | M2-05 API read routes (router, hydration, identity rules), moto tests, stage checks |
