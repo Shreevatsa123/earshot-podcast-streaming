@@ -33,3 +33,4 @@
 | 2026-11-24 | M2 | Claude Code (Claude Opus 5.5) | M2-03 `seed_catalog.py` (catalog → DynamoDB items) and moto tests |
 | 2026-11-24 | M2 | Claude Code (Claude Opus 5.5) | M2-04 API construct (HTTP API, JWT authorizer, routes, CORS, throttling), unit tests, stage checks |
 | 2026-11-24 | M2 | Claude Code (Claude Opus 5.5) | M2-05 API read routes (router, hydration, identity rules), moto tests, stage checks |
+| 2026-11-24 | M2 | Claude Code (Claude Opus 5.5) | M2-06 `/home` (rows, fallback chain, short-timeout recs client, flags cache, HomeFallback metric), tests, S8 check in `sankha` |
