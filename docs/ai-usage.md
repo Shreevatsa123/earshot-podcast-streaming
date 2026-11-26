@@ -37,3 +37,4 @@
 | 2026-11-07 | M1 | Kiro (Claude) | M1-01 web scaffold: Vite + React + TS app, runtime `config.json` loader, `VITE_USE_MOCKS` mode against `contracts/samples`, purple theme adapted from the team's Nocturne design, Home page, show dialog, search and player dock |
 | 2026-11-24 | M6 | Kiro (Claude) | M6-04 CI upkeep: alert email test counts only email subscriptions, `duckdb` in dev requirements, `archiver` in ruff first-party |
 | 2026-11-25 | M6 | Kiro (Claude) | M6-03 re-run in `prod` (fixing the Codespace venv) and the tracker update |
+| 2026-11-25 | M1 | Kiro (Claude) | M1-03 `create_sim_bot.py` (sim-bot Cognito user, optional generated SSM password) and unit tests |
