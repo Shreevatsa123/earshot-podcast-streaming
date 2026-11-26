@@ -41,3 +41,4 @@
 | 2026-11-25 | M6 | Kiro (Claude) | M6-07 acceptance harness (`tests/acceptance/`, runner, results writer, API client), its unit tests and the `docs/results.md` template |
 | 2026-11-25 | M6 | Kiro (Claude) | M6-08 cost check script, its unit tests, the S10 acceptance check and the two retain-guard synth tests |
 | 2026-11-25 | M6 | Kiro (Claude) | M6-05 monitoring constructs (dashboard, prod alarms in base and pipeline) and their synth tests |
+| 2026-11-26 | M2 | Claude Code (Claude Opus 5.5) | M2-09 S8 acceptance check (`s8_degradation.py`) and its unit tests |
