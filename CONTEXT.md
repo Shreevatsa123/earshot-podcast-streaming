@@ -556,6 +556,7 @@ Add the newest entry at the top: `YYYY-MM-DD · M<#> · §<section> · what chan
 
 | Date | Who | Section | Change |
 |---|---|---|---|
+| 2026-11-26 | M1 | §6 | M1-06: the web app's listening region (§6 `region`) defaults to `us-east` and is picked on Settings; it's stored in `localStorage` (`earshot.region`), so it applies to every event the browser sends. Live Trending polls `GET /trending?limit=20` every 5 s and pauses while the tab is hidden |
 | 2026-11-25 | M1 | §9 | M1-05: the web app's redirect URI is the page's own origin with no trailing slash (the CloudFront URL or `http://localhost:5173`, matching the web client's callbacks). Tokens live in `localStorage` and renew silently; a 401 from the API signs the user out of the app. Log out also calls Cognito's `/logout` with `logout_uri` = the same origin |
 | 2026-11-25 | M1 | §9 | M1-04: `config.json`'s `cognitoDomain` is the managed login **base URL** (`https://<prefix>.auth.us-east-1.amazoncognito.com`), not only the prefix. Values that don't exist yet are empty strings. The web build's own `config.json` (local dev values from `web/public`) is never uploaded. Every deploy invalidates `/*`, so a new build and config show up right away |
 | 2026-11-25 | M2 | §7.1 | Errors made by API Gateway itself (401 bad or missing token, 404 unknown route, 429 throttled, 5xx when the function fails) have the body `{"message":...}`, not `{"error":{...}}`: HTTP APIs can't customize them (found in the M2 recheck). Clients go by the status code; a 429 on `POST /events` is retried like `THROTTLED` |

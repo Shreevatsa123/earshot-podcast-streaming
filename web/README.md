@@ -26,6 +26,9 @@ gradient, rank numbers and equalizer animation live in `src/index.css`. Icons co
 | Hero spotlight with switcher | `components/HeroBillboard.tsx` | top 4 of the `/home` trending row |
 | Rows and cards (Continue, ranked Top Today, episode, show) | `components/Shelf.tsx`, `components/Cards.tsx` | `/home` rows, `/shows?genre=` |
 | Show details dialog | `components/ShowDetailModal.tsx` | `GET /shows/{id}` |
+| Browse page | `pages/Browse.tsx` | `GET /genres`, `GET /shows?genre=` (genre in the URL) |
+| Live Trending page | `pages/LiveTrending.tsx` | `GET /trending?limit=20` every 5 s while the tab is visible |
+| Settings page | `pages/Settings.tsx`, `lib/region.ts` | listening region for events (§6), account |
 | Search | `components/SearchOverlay.tsx` | `GET /shows` for all 8 genres, filtered in the browser (the API has no search route) |
 | Player dock + expanded view | `components/PlayerDock.tsx`, `components/PlayerContext.tsx` | HTML5 `<audio>` on the episode's `audio_url` |
 

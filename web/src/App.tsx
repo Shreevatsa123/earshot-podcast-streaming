@@ -10,6 +10,9 @@ import { UiContext, useUi } from "./components/UiContext";
 import type { UiActions } from "./components/UiContext";
 import { Home } from "./pages/Home";
 import { Placeholder } from "./pages/Placeholder";
+import { Browse } from "./pages/Browse";
+import { LiveTrending } from "./pages/LiveTrending";
+import { Settings } from "./pages/Settings";
 import { SessionLoading, SignIn } from "./pages/SignIn";
 import { useSession } from "./auth/session";
 import { USE_MOCKS } from "./lib/config";
@@ -43,20 +46,9 @@ function SignedInApp() {
         <Layout>
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route
-              path="/browse"
-              element={<Placeholder title="Browse by genre" note="All 8 genres and their shows. Coming in M1-06." />}
-            />
-            <Route
-              path="/trending"
-              element={
-                <Placeholder title="Live Trending" note="Today's most-played episodes, refreshed every 5 seconds. Coming in M1-06." />
-              }
-            />
-            <Route
-              path="/settings"
-              element={<Placeholder title="Settings" note="Pick the region your listening events come from. Coming in M1-06." />}
-            />
+            <Route path="/browse" element={<Browse />} />
+            <Route path="/trending" element={<LiveTrending />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<Placeholder title="Page not found" note="There's nothing at this address." />} />
           </Routes>
         </Layout>
