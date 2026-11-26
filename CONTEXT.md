@@ -8,7 +8,7 @@
 >
 > If an AI suggestion contradicts this file, this file wins. If the file itself is wrong, fix it in a PR. Don't let the AI work around it.
 >
-> **Contract status:** `DRAFT` (becomes `FROZEN` when tracker task G0-1 is done; after that, only additive changes)
+> **Contract status:** `FROZEN` (G0-1: all 6 approved). Only additive changes from now on, through a `contract-change` PR (§12)
 
 ---
 
@@ -542,6 +542,7 @@ Add the newest entry at the top: `YYYY-MM-DD · M<#> · §<section> · what chan
 
 | Date | Who | Section | Change |
 |---|---|---|---|
+| 2026-11-25 | All | §6–§9 | G0-1: contracts §6–§9 reviewed and approved by all 6 members; status `DRAFT` → `FROZEN`. From now on only additive changes (new optional field, new route, new item type) through a `contract-change` PR (§12); never rename or remove a field |
 | 2026-11-25 | M6 | §5, §10 | M6-05: **alarms are created in `prod` only.** The 6 §10 alarms use 7 of the account's 10 free alarm metrics (the 5xx rate uses 2), so any extra stage in the shared account would go over. Every stage still gets the dashboard (3 are free per account). Other stages' alarms can't be tested, so check alarm behaviour in `prod`. The hot queue age alarm is in the pipeline stack and references the ops topic by ARN. If members need alarms in their own stages later, switch to every stage plus a rule to tear extra shared-account stages down quickly |
 | 2026-11-25 | M6 | §5, §14 | M6-08: `make cost-check` lists anything hourly-billed in the account (EC2, Elastic IPs, NAT gateways, load balancers) plus leftover session stacks; `make pipeline-down` now runs it at the end. Kinesis and Firehose aren't checked, since the Free plan blocks them. S10's automated part uses the same checks |
 | 2026-11-25 | M6 | §14 | M6-07 acceptance harness: one module per criterion, `tests/acceptance/s<N>_<name>.py`, with `CRITERION`, `TITLE`, `OWNER`, `TARGET` and `run(ctx) -> Measurement`. Each owner fills in their own module (M4-06 writes `s3_replay.py`, for example). `make acceptance STAGE=<s> [ONLY=S1,S10]`; only `prod` runs update `docs/results.md`, and NOT IMPLEMENTED never overwrites a row, so results recorded by hand stay. Checks sign in as `sim-bot` through the sim client |
