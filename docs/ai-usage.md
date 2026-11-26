@@ -56,3 +56,4 @@
 | 2026-11-25 | M5 | Claude Code (Claude Opus 5.5) | M5-02 archiver: Lambda (batch planning, S3 write, failure reporting), cold queue/DLQ/subscription and SQS trigger constructs, unit and CDK tests |
 | 2026-11-26 | M5 | Claude Code (Claude Opus 5.5) | M5-04 recs writer: Athena CSV parsing, RECS/POPULAR items, S3 read and DynamoDB batch writes, moto tests and an end-to-end test from the archiver's files through the SQL to the items |
 | 2026-11-26 | M5 | Claude Code (Claude Opus 5.5) | M5-05 recs job: writer function, Step Functions state machine (JSONata windows, hand-written Athena steps, scoped IAM) and CDK tests |
+| 2026-11-26 | M5 | Claude Code (Claude Opus 5.5) | Verifying M5-01 to M5-05 and M5-08 in stage `badhri` (deploy, check scripts, Athena queries, recs run, teardown and cost check) |
