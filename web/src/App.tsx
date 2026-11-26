@@ -10,10 +10,23 @@ import { UiContext, useUi } from "./components/UiContext";
 import type { UiActions } from "./components/UiContext";
 import { Home } from "./pages/Home";
 import { Placeholder } from "./pages/Placeholder";
+import { SessionLoading, SignIn } from "./pages/SignIn";
+import { useSession } from "./auth/session";
 import { USE_MOCKS } from "./lib/config";
 
-/** App shell: top bar, routed pages, footer, show dialog, search and the player dock. */
+/**
+ * Shows the login screen until someone is logged in (M1-05), then the app. Every API
+ * route except /health needs a token (§7.1), so nothing loads before login.
+ */
 export function App() {
+  const { status } = useSession();
+  if (status === "loading") return <SessionLoading />;
+  if (status !== "signedIn") return <SignIn />;
+  return <SignedInApp />;
+}
+
+/** App shell: top bar, routed pages, footer, show dialog, search and the player dock. */
+function SignedInApp() {
   const [detailShowId, setDetailShowId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
 

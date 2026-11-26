@@ -29,6 +29,28 @@ gradient, rank numbers and equalizer animation live in `src/index.css`. Icons co
 | Search | `components/SearchOverlay.tsx` | `GET /shows` for all 8 genres, filtered in the browser (the API has no search route) |
 | Player dock + expanded view | `components/PlayerDock.tsx`, `components/PlayerContext.tsx` | HTML5 `<audio>` on the episode's `audio_url` |
 
+## Login (M1-05)
+
+Every API route except `/health` needs a Cognito access token (CONTEXT §7.1), so the app
+shows a login screen until someone is logged in.
+
+- `src/auth/session.tsx` wraps `react-oidc-context`: authorization code + PKCE against the
+  user pool, on Cognito's managed login pages (sign up is on the same page). After login,
+  Cognito sends the browser back to the site's own address, which must be one of the web
+  client's callback URLs: the CloudFront URL or `http://localhost:5173`.
+- The access token goes on every API call (`Authorization: Bearer ...`). Tokens are kept in
+  `localStorage` (logged in across tabs and reloads) and refreshed before they expire.
+- A 401 from the API forgets the token, which brings back the login screen.
+- Log out clears the tokens and then Cognito's own session (`/logout`).
+- In mock mode there's no login: you're a demo listener.
+
+**Real login on localhost:** copy your stage's live config over the empty local one, then
+start the dev server without mock mode. Don't commit the copied file.
+
+```bash
+curl -s https://<your-cloudfront-domain>/config.json > public/config.json
+```
+
 ## Runtime config (no rebuild per stage)
 
 The app does **not** bake stage values into the bundle. At startup it fetches `/config.json`:

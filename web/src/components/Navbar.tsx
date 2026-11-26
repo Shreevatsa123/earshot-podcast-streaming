@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { Search } from "lucide-react";
 import { useUi } from "./UiContext";
+import { AccountMenu } from "./AccountMenu";
 
 const NAV_ITEMS = [
   { to: "/", label: "Home", end: true },
@@ -65,7 +66,7 @@ export function Navbar() {
           ))}
         </nav>
 
-        <div className="flex items-center shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
           <button
             type="button"
             onClick={openSearch}
@@ -74,6 +75,7 @@ export function Navbar() {
             <Search className="w-4 h-4 text-[#D8B4FE]" aria-hidden="true" />
             <span>Search</span>
           </button>
+          <AccountMenu />
         </div>
       </div>
 
