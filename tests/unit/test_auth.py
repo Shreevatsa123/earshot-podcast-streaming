@@ -3,6 +3,8 @@
 Skipped when aws-cdk-lib isn't installed (run ``make install``).
 """
 
+import json
+
 import pytest
 
 cdk = pytest.importorskip("aws_cdk", reason="aws-cdk-lib isn't installed; run `make install`")
@@ -62,9 +64,11 @@ def test_web_client_is_code_with_pkce_and_no_secret(template: Template) -> None:
     assert web["AllowedOAuthFlowsUserPoolClient"] is True
     assert "openid" in web["AllowedOAuthScopes"]
     assert web["SupportedIdentityProviders"] == ["COGNITO"]
-    # Web construct isn't implemented yet (M1-04), so only localhost is registered.
-    assert web["CallbackURLs"] == ["http://localhost:5173"]
-    assert web["LogoutURLs"] == ["http://localhost:5173"]
+    # The CloudFront URL from the Web construct (M1-04), then local dev.
+    for urls in (web["CallbackURLs"], web["LogoutURLs"]):
+        assert len(urls) == 2
+        assert "Distribution" in json.dumps(urls[0]) and "DomainName" in json.dumps(urls[0])
+        assert urls[1] == "http://localhost:5173"
     # No password flow from the browser: login happens on the managed login pages.
     assert web["ExplicitAuthFlows"] == ["ALLOW_REFRESH_TOKEN_AUTH"]
 
