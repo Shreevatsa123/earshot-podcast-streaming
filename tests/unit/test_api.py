@@ -44,7 +44,10 @@ def test_http_api_with_cors(template: Template) -> None:
     [api] = props(template, "AWS::ApiGatewayV2::Api")
     assert api["ProtocolType"] == "HTTP"
     cors = api["CorsConfiguration"]
-    assert cors["AllowOrigins"] == ["http://localhost:5173"]  # + the CloudFront URL once M1-04 exists
+    # The CloudFront URL from the Web construct (M1-04), then local dev.
+    web_origin, local_origin = cors["AllowOrigins"]
+    assert web_origin["Fn::Join"][1][0] == "https://" and "DomainName" in str(web_origin)
+    assert local_origin == "http://localhost:5173"
     assert set(cors["AllowMethods"]) == {"GET", "POST", "OPTIONS"}
     assert set(cors["AllowHeaders"]) == {"authorization", "content-type", "x-earshot-sim-user"}
 

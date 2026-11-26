@@ -44,3 +44,5 @@
 | 2026-11-26 | M2 | Claude Code (Claude Opus 5.5) | M2-09 S8 acceptance check (`s8_degradation.py`) and its unit tests |
 | 2026-11-26 | M2 | Claude Code (Claude Opus 5.5) | Full recheck of the M2 work (tests, live routes in `sankha` and `prod`); §7.1 note on API Gateway's own error bodies |
 | 2026-11-25 | M6 | Kiro (Claude) | Contract status approval check (`.github/workflows/contract-status.yml`) and undoing the early G0-1 freeze |
+| 2026-11-25 | M1 | Kiro (Claude) | Own-stage setup for `tanishqa` (budget, admin user, CLI, bootstrap, deploy) and the M1-02/M1-03 stage checks |
+| 2026-11-25 | M1 | Kiro (Claude) | M1-04 web construct (bucket, CloudFront with OAC, SPA routing, config.json deployment) and unit tests |
