@@ -310,3 +310,60 @@ def test_main_refuses_bad_input_before_touching_aws(event, monkeypatch):
     monkeypatch.setenv("LAKE_BUCKET", LAKE)
     with pytest.raises(ValueError):
         handler.main(event, None)
+
+
+# ---- End to end: archiver files -> athena/*.sql -> Athena-style CSV -> writer -> items -------
+
+
+def test_the_real_queries_output_becomes_valid_items(aws, tmp_path):
+    """M3's 1,000 sample events go through the archiver's file format, recs.sql and popular.sql
+    (in DuckDB), then the writer. Every item must have the §8.1 shape and the right counts."""
+    duckdb = pytest.importorskip("duckdb", reason="duckdb isn't installed")
+    pytest.importorskip("aws_cdk", reason="aws-cdk-lib isn't installed; run `make install`")
+    from pathlib import Path
+
+    from archiver.handler import encode_lines, object_key, plan_batch
+    from earshot_infra.constructs.lake import EVENT_COLUMNS
+
+    root = Path(__file__).resolve().parents[2]
+    lines = (root / "contracts" / "samples" / "events.jsonl").read_text(encoding="utf-8").splitlines()
+    events = [json.loads(line) for line in lines]
+    batch = [{"messageId": f"m{i}", "body": json.dumps({"events": events[i : i + 25]})} for i in range(0, 1000, 25)]
+    for n, (folder, folder_lines) in enumerate(plan_batch(batch).lines_by_folder.items()):
+        path = tmp_path / object_key(folder, f"f{n}")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(encode_lines(folder_lines))
+
+    types = {"string": "VARCHAR", "int": "INTEGER", "bigint": "BIGINT"}
+    columns = ", ".join(f"'{name}': '{types[kind]}'" for name, kind in EVENT_COLUMNS)
+    con = duckdb.connect()
+    con.execute(
+        f"CREATE VIEW events AS SELECT * FROM read_json('{(tmp_path / 'events').as_posix()}/*/*/*.json.gz', "
+        f"format = 'newline_delimited', columns = {{{columns}}}, hive_partitioning = true, "
+        "hive_types = {'dt': VARCHAR, 'hour': VARCHAR})"
+    )
+    window = ["2026-11-14", "2026-11-15", 1_794_614_400_000, 1_794_700_800_000]  # the sample's day
+
+    def query_as_athena_csv(name: str) -> tuple[str, list[tuple[Any, ...]]]:
+        cursor = con.execute((root / "athena" / f"{name}.sql").read_text(encoding="utf-8"), window)
+        rows = cursor.fetchall()
+        return athena_csv(tuple(d[0] for d in cursor.description), rows), rows
+
+    recs_text, recs_rows = query_as_athena_csv("recs")
+    popular_text, popular_rows = query_as_athena_csv("popular")
+    s3, table = aws
+    result = run(s3, recs_text, popular_text)
+
+    users = sorted({row[0] for row in recs_rows})
+    assert users, "the sample should have at least one user with 3+ distinct plays"
+    assert result == {"run_id": "run-1", "users_written": len(users), "popular_count": len(popular_rows)}
+    for user in users:
+        item = get(table, f"USER#{user}", "RECS")
+        assert 1 <= len(item["rows"]) <= 2
+        for row in item["rows"]:
+            assert set(row) == {"seed_show_id", "seed_episode_id", "items"}
+            assert 1 <= len(row["items"]) <= 10
+            assert all(set(i) == {"show_id", "episode_id", "score"} for i in row["items"])
+        assert sum(len(r["items"]) for r in item["rows"]) == sum(1 for r in recs_rows if r[0] == user)
+    popular = get(table, "POPULAR", "GLOBAL")["items"]
+    assert [(p["episode_id"], p["plays"]) for p in popular] == [(r[1], r[2]) for r in popular_rows]
