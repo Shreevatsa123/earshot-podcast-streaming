@@ -26,6 +26,7 @@ from constructs import Construct
 from earshot_infra.common import tag_owner, tag_stack
 from earshot_infra.config import StageConfig
 from earshot_infra.constructs.archiver import ArchiverPipeline
+from earshot_infra.constructs.monitoring import MonitoringPipeline
 from earshot_infra.constructs.processing import ProcessingPipeline
 from earshot_infra.constructs.simulator import Simulator
 
@@ -43,3 +44,7 @@ class PipelineStack(Stack):
 
         simulator = Simulator(self, "Simulator", cfg=cfg)
         tag_owner(simulator, "M3")
+
+        # Hot queue age alarm (prod only): here so it only exists while the processor runs.
+        monitoring = MonitoringPipeline(self, "Monitoring", cfg=cfg)
+        tag_owner(monitoring, "M6")

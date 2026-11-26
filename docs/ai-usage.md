@@ -40,3 +40,4 @@
 | 2026-11-25 | M1 | Kiro (Claude) | M1-03 `create_sim_bot.py` (sim-bot Cognito user, optional generated SSM password) and unit tests |
 | 2026-11-25 | M6 | Kiro (Claude) | M6-07 acceptance harness (`tests/acceptance/`, runner, results writer, API client), its unit tests and the `docs/results.md` template |
 | 2026-11-25 | M6 | Kiro (Claude) | M6-08 cost check script, its unit tests, the S10 acceptance check and the two retain-guard synth tests |
+| 2026-11-25 | M6 | Kiro (Claude) | M6-05 monitoring constructs (dashboard, prod alarms in base and pipeline) and their synth tests |
