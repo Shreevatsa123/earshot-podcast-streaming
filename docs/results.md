@@ -35,3 +35,5 @@ For anything checked by hand (the browser walkthrough, the alert email's arrival
 ## Evidence
 
 Screenshots, charts and links for the slides, e.g. the S4/S6 load and latency charts and the S9 alert email.
+
+- **I12 (catalog IDs in every account), Nov 25, M2:** `make seed STAGE=prod` wrote 1,007 items (48 shows, 958 episodes, `FEATURED` with 20) to `earshot-prod-main`, the same as in stage `sankha`. A count scan returns 1,007, and the GSI1 query for `GENRE#true-crime` returns the shows in the same order as `contracts/samples/shows.json`.
