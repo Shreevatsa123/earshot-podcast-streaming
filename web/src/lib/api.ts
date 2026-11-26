@@ -119,7 +119,11 @@ export function getShowDetail(showId: string): Promise<ShowDetailResponse> {
 }
 
 export function getTrending(limit = 10): Promise<TrendingResponse> {
-  if (USE_MOCKS) return mock((m) => ({ ...m.trending, items: m.trending.items.slice(0, limit) }));
+  if (USE_MOCKS)
+    return mock((m) => {
+      const t = m.trending();
+      return { ...t, items: t.items.slice(0, limit) };
+    });
   return request<TrendingResponse>(`/trending?limit=${limit}`);
 }
 

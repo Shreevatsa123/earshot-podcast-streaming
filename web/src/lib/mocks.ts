@@ -47,7 +47,22 @@ interface Catalog {
 const catalog = catalogJson as unknown as Catalog;
 
 export const home = homeJson as unknown as HomeResponse;
-export const trending = trendingJson as unknown as TrendingResponse;
+const trendingSample = trendingJson as unknown as TrendingResponse;
+let mockPlays = new Map(trendingSample.items.map((e) => [e.episode_id, e.plays ?? 0]));
+
+/**
+ * The sample trending list, with a few new plays added on every call and re-sorted, so the
+ * Live Trending page visibly updates in mock mode.
+ */
+export function trending(): TrendingResponse {
+  mockPlays = new Map(
+    [...mockPlays].map(([id, plays]) => [id, plays + Math.floor(Math.random() * 7)]),
+  );
+  const items = trendingSample.items
+    .map((e) => ({ ...e, plays: mockPlays.get(e.episode_id) ?? 0 }))
+    .sort((a, b) => b.plays - a.plays);
+  return { ...trendingSample, items };
+}
 export const genres: GenresResponse = { genres: GENRES };
 
 export function progress(episodeId: string): ProgressResponse {
