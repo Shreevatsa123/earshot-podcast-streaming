@@ -3,8 +3,8 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # Lambda code imports "shared.*"; infra code imports "earshot_infra.*"; scripts/ holds
-# the account and cost checks.
-pythonpath = ["services", "infra", "scripts"]
+# the account and cost checks; tests/ holds the "acceptance" package (M6-07).
+pythonpath = ["services", "infra", "scripts", "tests"]
 addopts = "-q --import-mode=importlib"
 
 [tool.ruff]
@@ -18,4 +18,5 @@ ignore = ["UP017"]  # datetime.timezone.utc is fine
 [tool.ruff.lint.isort]
 known-first-party = [
     "shared", "earshot_infra", "api", "ingest", "processor", "archiver", "recs_writer", "account_check",
+    "acceptance",
 ]
