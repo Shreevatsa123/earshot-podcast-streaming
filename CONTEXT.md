@@ -8,7 +8,7 @@
 >
 > If an AI suggestion contradicts this file, this file wins. If the file itself is wrong, fix it in a PR. Don't let the AI work around it.
 >
-> **Contract status:** `DRAFT` (becomes `FROZEN` when tracker task G0-1 is done; after that, only additive changes)
+> **Contract status:** `FROZEN` (G0-1: all 6 members approved). Only additive changes from now on, through a `contract-change` PR (§12)
 
 ---
 
@@ -543,6 +543,8 @@ Add the newest entry at the top: `YYYY-MM-DD · M<#> · §<section> · what chan
 
 | Date | Who | Section | Change |
 |---|---|---|---|
+| 2026-11-26 | All | §6–§9 | G0-1: contracts §6–§9 reviewed and approved on GitHub by all 6 members; status `DRAFT` → `FROZEN`. From now on only additive changes (new optional field, new route, new item type) through a `contract-change` PR (§12); never rename or remove a field |
+| 2026-11-25 | M6 | §12 | New CI check **contract status approvals** (`.github/workflows/contract-status.yml`): a PR that changes the "Contract status" line fails it until every member except its author has approved on GitHub. Other PRs pass at once |
 | 2026-11-25 | M2 | §7.1 | Errors made by API Gateway itself (401 bad or missing token, 404 unknown route, 429 throttled, 5xx when the function fails) have the body `{"message":...}`, not `{"error":{...}}`: HTTP APIs can't customize them (found in the M2 recheck). Clients go by the status code; a 429 on `POST /events` is retried like `THROTTLED` |
 | 2026-11-25 | M6 | §6–§9 | G0-1 freeze undone: #46 set the status to `FROZEN` before anyone had approved it, so it's back to `DRAFT`. The freeze is redone in a new PR that can only merge once all 6 members have approved |
 | 2026-11-25 | M6 | §5, §10 | M6-05: **alarms are created in `prod` only.** The 6 §10 alarms use 7 of the account's 10 free alarm metrics (the 5xx rate uses 2), so any extra stage in the shared account would go over. Every stage still gets the dashboard (3 are free per account). Other stages' alarms can't be tested, so check alarm behaviour in `prod`. The hot queue age alarm is in the pipeline stack and references the ops topic by ARN. If members need alarms in their own stages later, switch to every stage plus a rule to tear extra shared-account stages down quickly |
