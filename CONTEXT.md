@@ -8,7 +8,7 @@
 >
 > If an AI suggestion contradicts this file, this file wins. If the file itself is wrong, fix it in a PR. Don't let the AI work around it.
 >
-> **Contract status:** `DRAFT` (becomes `FROZEN` when tracker task G0-1 is done; after that, only additive changes)
+> **Contract status:** `FROZEN` (G0-1: all 6 members approved). Only additive changes from now on, through a `contract-change` PR (§12)
 
 ---
 
@@ -543,6 +543,8 @@ Add the newest entry at the top: `YYYY-MM-DD · M<#> · §<section> · what chan
 
 | Date | Who | Section | Change |
 |---|---|---|---|
+| 2026-11-26 | All | §6–§9 | G0-1: contracts §6–§9 reviewed and approved on GitHub by all 6 members; status `DRAFT` → `FROZEN`. From now on only additive changes (new optional field, new route, new item type) through a `contract-change` PR (§12); never rename or remove a field |
+| 2026-11-25 | M6 | §12 | New CI check **contract status approvals** (`.github/workflows/contract-status.yml`): a PR that changes the "Contract status" line fails it until every member except its author has approved on GitHub. Other PRs pass at once |
 | 2026-11-25 | M1 | §9 | M1-04: `config.json`'s `cognitoDomain` is the managed login **base URL** (`https://<prefix>.auth.us-east-1.amazoncognito.com`), not only the prefix. Values that don't exist yet are empty strings. The web build's own `config.json` (local dev values from `web/public`) is never uploaded. Every deploy invalidates `/*`, so a new build and config show up right away |
 | 2026-11-25 | M2 | §7.1 | Errors made by API Gateway itself (401 bad or missing token, 404 unknown route, 429 throttled, 5xx when the function fails) have the body `{"message":...}`, not `{"error":{...}}`: HTTP APIs can't customize them (found in the M2 recheck). Clients go by the status code; a 429 on `POST /events` is retried like `THROTTLED` |
 | 2026-11-25 | M6 | §6–§9 | G0-1 freeze undone: #46 set the status to `FROZEN` before anyone had approved it, so it's back to `DRAFT`. The freeze is redone in a new PR that can only merge once all 6 members have approved |
