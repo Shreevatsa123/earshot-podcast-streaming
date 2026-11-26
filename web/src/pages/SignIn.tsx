@@ -1,11 +1,51 @@
-import { AlertTriangle, ArrowUpRight, Headphones, Radio, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import type { ComponentType } from "react";
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  Headphones,
+  Play,
+  Radio,
+  RotateCcw,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useSession } from "../auth/session";
 
-// Same three points as before; the layout follows the team's Nocturne login design.
-const FEATURES = [
-  { icon: RotateCcw, title: "Pick up where you left off", text: "Resume any episode at the second you paused." },
-  { icon: Radio, title: "See what's trending now", text: "Live play counts from everyone listening." },
-  { icon: Sparkles, title: "Recommendations for you", text: "Shows picked from what people like you play." },
+// Earshot's three features. The card shows one at a time as a carousel; the layout follows
+// the team's Nocturne login design. The visuals are illustrations, not live data: nothing
+// can be loaded from the API before login (CONTEXT §7.1).
+interface Feature {
+  icon: LucideIcon;
+  kicker: string;
+  title: string;
+  text: string;
+  Visual: ComponentType;
+}
+
+const FEATURES: Feature[] = [
+  {
+    icon: RotateCcw,
+    kicker: "Resume · Any device",
+    title: "Pick up where you left off",
+    text: "Resume any episode at the second you paused.",
+    Visual: ResumeVisual,
+  },
+  {
+    icon: Radio,
+    kicker: "Live · Updated every few seconds",
+    title: "See what's trending now",
+    text: "Live play counts from everyone listening.",
+    Visual: TrendingVisual,
+  },
+  {
+    icon: Sparkles,
+    kicker: "For you · Based on listening",
+    title: "Recommendations for you",
+    text: "Shows picked from what people like you play.",
+    Visual: RecsVisual,
+  },
 ];
 
 // Facts about the catalog snapshot (contracts/samples/catalog.json, CONTEXT §8.3).
@@ -15,24 +55,16 @@ const HIGHLIGHTS = [
   { value: "8", label: "Genres to browse" },
 ];
 
-// Fixed heights (%) for the decorative sound bars on the card.
-const WAVE_HEIGHTS = [34, 62, 48, 86, 58, 100, 44, 72, 90, 52, 66, 38, 80, 56, 42, 70, 50, 84, 40, 64];
+const SLIDE_MS = 5000;
 
 /** Shown instead of the app when nobody is logged in (or the login failed). */
 export function SignIn() {
-  const { status, error, signIn } = useSession();
+  const { status, error, signIn, signUp } = useSession();
   const failed = status === "error";
 
   return (
     <div className="relative min-h-screen w-full flex flex-col overflow-hidden bg-[#07020F] text-[#FAF7FF]">
-      {/* Layered purple light behind everything */}
-      <div aria-hidden="true" className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0B0418] via-[#14072B] to-[#07020F]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_55%_48%_at_76%_24%,rgba(168,85,247,0.34),transparent_68%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_52%_44%_at_16%_80%,rgba(126,34,206,0.30),transparent_68%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_40%_35%_at_40%_10%,rgba(76,29,149,0.28),transparent_70%)]" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#07020F] via-transparent to-[#07020F]/60" />
-      </div>
+      <Backdrop />
 
       <header className="relative z-20 w-full border-b border-purple-300/10 bg-[#090314]/55 backdrop-blur-md">
         <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-12 h-16 flex items-center">
@@ -42,7 +74,7 @@ export function SignIn() {
 
       <main className="relative z-10 flex-1 flex items-center py-12 sm:py-16 lg:py-20">
         <div className="max-w-[1340px] w-full mx-auto px-5 sm:px-8 lg:px-12 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-center">
-          {/* Left: headline and the login button */}
+          {/* Left: headline and the two login buttons */}
           <div className="lg:col-span-7 space-y-8">
             <div className="space-y-5">
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs sm:text-sm font-medium text-[#D8B4FE]">
@@ -78,28 +110,36 @@ export function SignIn() {
             )}
 
             <div className="space-y-5 pt-2">
-              <button
-                type="button"
-                onClick={signIn}
-                className="group inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl bg-gradient-to-r from-[#A855F7] via-[#9333EA] to-[#7C3AED] hover:from-[#B76BFF] hover:via-[#A855F7] hover:to-[#8B5CF6] text-white font-display font-semibold text-base shadow-[0_14px_38px_rgba(147,51,234,0.48)] transition-all duration-150 active:scale-[0.98] whitespace-nowrap cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-300"
-              >
-                <span>Log in or sign up</span>
-                <ArrowUpRight
-                  className="w-4 h-4 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-                  aria-hidden="true"
-                />
-              </button>
+              <div className="flex flex-wrap items-center gap-4">
+                <button
+                  type="button"
+                  onClick={signIn}
+                  className="group inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl bg-gradient-to-r from-[#A855F7] via-[#9333EA] to-[#7C3AED] hover:from-[#B76BFF] hover:via-[#A855F7] hover:to-[#8B5CF6] text-white font-display font-semibold text-base shadow-[0_14px_38px_rgba(147,51,234,0.48)] transition-all duration-150 active:scale-[0.98] whitespace-nowrap cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-300"
+                >
+                  <span>Log in</span>
+                  <ArrowUpRight
+                    className="w-4 h-4 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                    aria-hidden="true"
+                  />
+                </button>
 
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-[#B39FD3]">
-                <span className="inline-flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-[#C084FC]" aria-hidden="true" />
-                  Secure sign-in with Amazon Cognito
-                </span>
-                <span aria-hidden="true" className="text-purple-300/35">·</span>
-                <span>
-                  New here? Choose <span className="text-[#E9D5FF]">Create an account</span> on the next page.
-                </span>
+                <button
+                  type="button"
+                  onClick={signUp}
+                  className="group inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl bg-[#FAF7FF] hover:bg-white text-[#120722] font-display font-semibold text-base shadow-[0_12px_32px_rgba(12,4,24,0.45)] transition-all duration-150 active:scale-[0.98] whitespace-nowrap cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-300"
+                >
+                  <span>Sign up</span>
+                  <ArrowUpRight
+                    className="w-4 h-4 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                    aria-hidden="true"
+                  />
+                </button>
               </div>
+
+              <p className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-[#B39FD3]">
+                <ShieldCheck className="w-4 h-4 text-[#C084FC]" aria-hidden="true" />
+                Secure sign-in with Amazon Cognito
+              </p>
             </div>
 
             <dl className="grid grid-cols-3 gap-6 pt-6 border-t border-purple-300/12 max-w-xl">
@@ -115,77 +155,9 @@ export function SignIn() {
             </dl>
           </div>
 
-          {/* Right: showcase card with Earshot's three features */}
+          {/* Right: showcase card with a carousel of the three features */}
           <div className="lg:col-span-5">
-            <div className="relative">
-              <div
-                aria-hidden="true"
-                className="absolute -inset-2 rounded-[28px] bg-gradient-to-br from-[#C084FC]/28 via-[#7E22CE]/18 to-[#4C1D95]/28 blur-2xl opacity-85 pointer-events-none"
-              />
-
-              <div className="relative rounded-2xl bg-gradient-to-b from-[#1B0D35]/92 via-[#140929]/95 to-[#0E061E]/96 border border-purple-300/20 backdrop-blur-xl overflow-hidden shadow-[0_30px_90px_rgba(4,1,12,0.88)]">
-                <div
-                  aria-hidden="true"
-                  className="h-[2px] w-full bg-gradient-to-r from-transparent via-[#D8B4FE] to-transparent opacity-80"
-                />
-
-                {/* Decorative artwork: a glowing sound wave */}
-                <div aria-hidden="true" className="relative aspect-[16/9] overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#3B0F70] via-[#1E0B3D] to-[#0E061E]" />
-                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_70%_at_50%_55%,rgba(192,132,252,0.45),transparent_70%)]" />
-                  <div className="absolute inset-x-8 bottom-8 top-16 flex items-end justify-between gap-1.5">
-                    {WAVE_HEIGHTS.map((h, i) => (
-                      <span
-                        key={i}
-                        className="eq-bar flex-1 rounded-full bg-gradient-to-t from-[#9333EA] via-[#C084FC] to-[#F5D0FE] opacity-90"
-                        style={{ height: `${h}%`, animationDelay: `${((i * 0.17) % 1.1).toFixed(2)}s` }}
-                      />
-                    ))}
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#140929] via-[#140929]/20 to-transparent" />
-                  <span className="absolute top-4 left-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#0D051B]/80 border border-purple-300/25 text-[11px] font-medium text-[#FAF7FF] backdrop-blur-md">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#E879F9]" />
-                    Listening now
-                  </span>
-                </div>
-
-                <div className="p-6 space-y-5">
-                  <div>
-                    <p className="text-xs font-medium text-[#C084FC]">Podcasts · Real-time listening</p>
-                    <h2 className="font-display text-xl sm:text-2xl font-bold text-[#FAF7FF] mt-0.5">Listen on Earshot</h2>
-                    <p className="text-xs sm:text-sm leading-relaxed text-[#CFC0E8] mt-2">
-                      Every play is counted the moment it happens, so your place and the charts are always up to date.
-                    </p>
-                  </div>
-
-                  <div className="pt-4 border-t border-purple-300/12 space-y-2">
-                    <div className="flex items-center justify-between text-[11px] text-[#A28EC4]">
-                      <span className="inline-flex items-center gap-1.5">
-                        <Headphones className="w-3.5 h-3.5 text-[#C084FC]" aria-hidden="true" />
-                        <span>What you get</span>
-                      </span>
-                      <span className="font-mono tabular-nums">0{FEATURES.length}</span>
-                    </div>
-
-                    <ul className="space-y-2">
-                      {FEATURES.map(({ icon: Icon, title, text }, idx) => (
-                        <li
-                          key={title}
-                          className="flex items-start gap-3 px-3.5 py-3 rounded-xl border bg-[#160B2B]/70 border-purple-300/10"
-                        >
-                          <span className="font-mono text-[10px] tabular-nums text-[#C084FC] pt-1 w-5 shrink-0">0{idx + 1}</span>
-                          <div className="min-w-0 flex-1">
-                            <h3 className="font-display text-sm font-semibold text-[#FAF7FF]">{title}</h3>
-                            <p className="text-xs text-[#BFAEE0] mt-0.5">{text}</p>
-                          </div>
-                          <Icon className="w-4 h-4 text-[#D8B4FE] shrink-0 mt-0.5" aria-hidden="true" />
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <FeatureCarousel />
           </div>
         </div>
       </main>
@@ -200,6 +172,239 @@ export function SignIn() {
         </div>
       </footer>
     </div>
+  );
+}
+
+/** Layered purple light with two glows drifting slowly behind the page. */
+function Backdrop() {
+  return (
+    <div aria-hidden="true" className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-[#0B0418] via-[#14072B] to-[#07020F]" />
+      <div className="aurora-a absolute -top-[20%] right-[-10%] w-[70vw] h-[70vw] rounded-full bg-[radial-gradient(circle,rgba(168,85,247,0.30),transparent_65%)]" />
+      <div className="aurora-b absolute bottom-[-30%] left-[-15%] w-[75vw] h-[75vw] rounded-full bg-[radial-gradient(circle,rgba(126,34,206,0.28),transparent_65%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_40%_35%_at_40%_10%,rgba(76,29,149,0.25),transparent_70%)]" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#07020F] via-transparent to-[#07020F]/60" />
+    </div>
+  );
+}
+
+/**
+ * Glowing card (Nocturne style) that shows one feature at a time. It moves on every 5 s,
+ * pauses while hovered or focused, and the numbered rows below pick a slide directly.
+ */
+function FeatureCarousel() {
+  const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (paused || reduceMotion) return;
+    const timer = window.setInterval(() => setActive((i) => (i + 1) % FEATURES.length), SLIDE_MS);
+    return () => window.clearInterval(timer);
+  }, [paused]);
+
+  const feature = FEATURES[active];
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+    >
+      <div
+        aria-hidden="true"
+        className="absolute -inset-2 rounded-[28px] bg-gradient-to-br from-[#C084FC]/28 via-[#7E22CE]/18 to-[#4C1D95]/28 blur-2xl opacity-85 pointer-events-none"
+      />
+
+      <section
+        aria-roledescription="carousel"
+        aria-label="What you get with Earshot"
+        className="relative rounded-2xl bg-gradient-to-b from-[#1B0D35]/92 via-[#140929]/95 to-[#0E061E]/96 border border-purple-300/20 backdrop-blur-xl overflow-hidden shadow-[0_30px_90px_rgba(4,1,12,0.88)]"
+      >
+        <div aria-hidden="true" className="h-[2px] w-full bg-gradient-to-r from-transparent via-[#D8B4FE] to-transparent opacity-80" />
+
+        {/* Slide artwork: all three are stacked and cross-fade */}
+        <div aria-hidden="true" className="relative aspect-[16/9] overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-[#3B0F70] via-[#1E0B3D] to-[#0E061E]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_70%_at_50%_55%,rgba(192,132,252,0.40),transparent_70%)]" />
+          {FEATURES.map(({ title, Visual }, idx) => (
+            <div
+              key={title}
+              className={`absolute inset-0 transition-opacity duration-700 ease-out ${idx === active ? "opacity-100" : "opacity-0"}`}
+            >
+              <Visual />
+            </div>
+          ))}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#140929] via-[#140929]/10 to-transparent" />
+          <span className="absolute top-4 left-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#0D051B]/80 border border-purple-300/25 text-[11px] font-medium text-[#FAF7FF] backdrop-blur-md">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#E879F9]" />
+            Listening now
+          </span>
+        </div>
+
+        <div className="p-6 space-y-5">
+          <div aria-live="polite" key={feature.title} className="min-h-[5.5rem]">
+            <p className="text-xs font-medium text-[#C084FC]">{feature.kicker}</p>
+            <h2 className="font-display text-xl sm:text-2xl font-bold text-[#FAF7FF] mt-0.5">{feature.title}</h2>
+            <p className="text-xs sm:text-sm leading-relaxed text-[#CFC0E8] mt-2">{feature.text}</p>
+          </div>
+
+          <div className="pt-4 border-t border-purple-300/12 space-y-2">
+            <div className="flex items-center justify-between text-[11px] text-[#A28EC4]">
+              <span className="inline-flex items-center gap-1.5">
+                <Headphones className="w-3.5 h-3.5 text-[#C084FC]" aria-hidden="true" />
+                <span>What you get</span>
+              </span>
+              <span className="font-mono tabular-nums">
+                0{active + 1} / 0{FEATURES.length}
+              </span>
+            </div>
+
+            <div role="tablist" aria-label="Features" className="grid grid-cols-3 gap-2">
+              {FEATURES.map(({ icon: Icon, title }, idx) => {
+                const isSelected = idx === active;
+                return (
+                  <button
+                    key={title}
+                    type="button"
+                    role="tab"
+                    aria-selected={isSelected}
+                    onClick={() => setActive(idx)}
+                    className={`relative overflow-hidden text-left px-3 py-2.5 rounded-xl border transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-purple-300 ${
+                      isSelected
+                        ? "bg-[#29144E] border-[#C084FC]/45 text-white"
+                        : "bg-[#160B2B]/70 hover:bg-[#221140] border-purple-300/10 text-[#BFAEE0]"
+                    }`}
+                  >
+                    <span className="flex items-center justify-between">
+                      <span className="font-mono text-[10px] tabular-nums text-[#C084FC]">0{idx + 1}</span>
+                      <Icon className="w-3.5 h-3.5 text-[#D8B4FE]" aria-hidden="true" />
+                    </span>
+                    <span className="block font-display text-xs font-semibold leading-snug mt-1 line-clamp-2">{title}</span>
+                    {isSelected && (
+                      <span
+                        aria-hidden="true"
+                        key={`${active}-${paused}`}
+                        className={`absolute left-0 bottom-0 h-[2px] bg-gradient-to-r from-[#9333EA] to-[#E9D5FF] ${paused ? "w-full" : "carousel-progress"}`}
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ---- slide illustrations (decorative, no data) ---------------------------------------
+
+function ResumeVisual() {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center px-10">
+      <div className="w-full max-w-sm rounded-2xl bg-[#0D051B]/70 border border-purple-300/20 backdrop-blur-md p-5 shadow-[0_18px_50px_rgba(5,2,14,0.6)]">
+        <div className="flex items-center gap-3">
+          <span className="w-11 h-11 rounded-full bg-[#FAF7FF] text-[#120722] flex items-center justify-center shrink-0 shadow-[0_6px_24px_rgba(168,85,247,0.5)]">
+            <Play className="w-4 h-4 fill-current ml-0.5" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[11px] font-medium text-[#D8B4FE]">Resumed at 18:42</p>
+            <p className="font-display text-sm font-semibold text-[#FAF7FF]">Right where you paused</p>
+          </div>
+        </div>
+        <div className="mt-4 h-1.5 rounded-full bg-purple-950/90 overflow-hidden">
+          <div className="playhead-fill h-full rounded-full bg-gradient-to-r from-[#9333EA] via-[#C084FC] to-[#E9D5FF]" />
+        </div>
+        <div className="mt-1.5 flex justify-between font-mono text-[10px] text-[#A995C8]">
+          <span>18:42</span>
+          <span>46:10</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const TREND_BARS = [
+  { rank: 1, h: 92 },
+  { rank: 2, h: 74 },
+  { rank: 3, h: 60 },
+  { rank: 4, h: 46 },
+  { rank: 5, h: 34 },
+];
+
+function TrendingVisual() {
+  return (
+    <div className="absolute inset-x-12 top-[4.5rem] bottom-6 flex items-end justify-center gap-4">
+      {TREND_BARS.map(({ rank, h }, i) => (
+        <div key={rank} className="relative flex-1 max-w-14" style={{ height: `${h}%` }}>
+          <span className="rank-numeral absolute -top-8 left-1/2 -translate-x-1/2 text-3xl leading-none">{rank}</span>
+          <span
+            className="bar-breathe block w-full h-full rounded-t-lg bg-gradient-to-t from-[#7E22CE] via-[#A855F7] to-[#F0ABFC] shadow-[0_0_24px_rgba(192,132,252,0.35)]"
+            style={{ animationDelay: `${(i * 0.3).toFixed(2)}s` }}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Dots and the lines between them, in a 100 × 56 box (the slide's 16:9 shape).
+const NODES = [
+  { x: 18, y: 34 },
+  { x: 34, y: 18 },
+  { x: 50, y: 30 },
+  { x: 66, y: 16 },
+  { x: 82, y: 32 },
+  { x: 42, y: 44 },
+  { x: 62, y: 42 },
+];
+const LINKS: [number, number][] = [
+  [0, 1],
+  [1, 2],
+  [2, 3],
+  [3, 4],
+  [2, 5],
+  [2, 6],
+  [5, 6],
+  [6, 4],
+];
+
+function RecsVisual() {
+  return (
+    <svg viewBox="0 0 100 56" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <linearGradient id="recs-line" x1="0" x2="1">
+          <stop offset="0%" stopColor="#9333EA" stopOpacity="0.6" />
+          <stop offset="100%" stopColor="#F0ABFC" stopOpacity="0.8" />
+        </linearGradient>
+      </defs>
+      {LINKS.map(([a, b]) => (
+        <line
+          key={`${a}-${b}`}
+          x1={NODES[a].x}
+          y1={NODES[a].y}
+          x2={NODES[b].x}
+          y2={NODES[b].y}
+          stroke="url(#recs-line)"
+          strokeWidth="0.5"
+        />
+      ))}
+      {NODES.map(({ x, y }, i) => (
+        <circle
+          key={i}
+          cx={x}
+          cy={y}
+          r={i === 2 ? 3 : 1.8}
+          fill={i === 2 ? "#F5D0FE" : "#C084FC"}
+          className="twinkle"
+          style={{ animationDelay: `${(i * 0.35).toFixed(2)}s`, transformOrigin: `${x}px ${y}px` }}
+        />
+      ))}
+    </svg>
   );
 }
 

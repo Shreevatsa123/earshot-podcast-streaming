@@ -9,7 +9,7 @@
 import { createContext, useContext, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { AuthProvider, useAuth } from "react-oidc-context";
-import { WebStorageStateStore } from "oidc-client-ts";
+import { UserManager, WebStorageStateStore } from "oidc-client-ts";
 import type { UserManagerSettings } from "oidc-client-ts";
 import { setTokenProvider, setUnauthorizedHandler } from "../lib/api";
 import type { RuntimeConfig } from "../lib/config";
@@ -23,6 +23,8 @@ export interface Session {
   /** True in mock mode: there is no real login. */
   isMock: boolean;
   signIn: () => void;
+  /** Same flow as signIn, but opens Cognito's sign-up page instead of the sign-in page. */
+  signUp: () => void;
   signOut: () => void;
 }
 
@@ -58,6 +60,29 @@ export function oidcSettings(config: RuntimeConfig): UserManagerSettings {
     userStore: new WebStorageStateStore({ store: window.localStorage }),
     automaticSilentRenew: true,
   };
+}
+
+/**
+ * Start the same authorization code + PKCE flow as signIn, on Cognito's `/signup` page.
+ * That page takes the same parameters as `/oauth2/authorize` and, once the user has signed
+ * up and confirmed their email, returns to the app with a code. A short-lived UserManager
+ * builds the request with `/signup` as the authorization endpoint; it keeps its state in the
+ * same place as the main one, so the AuthProvider finishes the login as usual.
+ */
+export function signUpRedirect(config: RuntimeConfig): Promise<void> {
+  const settings = oidcSettings(config);
+  const manager = new UserManager({
+    ...settings,
+    automaticSilentRenew: false,
+    metadata: {
+      issuer: settings.authority,
+      authorization_endpoint: `${config.cognitoDomain}/signup`,
+      token_endpoint: `${config.cognitoDomain}/oauth2/token`,
+      userinfo_endpoint: `${config.cognitoDomain}/oauth2/userInfo`,
+      jwks_uri: `${settings.authority}/.well-known/jwks.json`,
+    },
+  });
+  return manager.signinRedirect();
 }
 
 /** Cognito's logout endpoint clears its own session cookie, then returns to the app. */
@@ -96,6 +121,7 @@ function MockSession({ children }: { children: ReactNode }) {
       error: null,
       isMock: true,
       signIn: () => {},
+      signUp: () => {},
       signOut: () => {},
     }),
     [],
@@ -127,6 +153,9 @@ function CognitoSession({ config, children }: { config: RuntimeConfig; children:
     const signIn = () => {
       void auth.signinRedirect();
     };
+    const signUp = () => {
+      void signUpRedirect(config);
+    };
     const signOut = () => {
       void auth.removeUser().then(() => {
         window.location.assign(cognitoLogoutUrl(config));
@@ -137,7 +166,7 @@ function CognitoSession({ config, children }: { config: RuntimeConfig; children:
     else if (auth.error) status = "error";
     else if (auth.isAuthenticated) status = "signedIn";
     const email = (auth.user?.profile.email as string | undefined) ?? null;
-    return { status, email, error: auth.error?.message ?? null, isMock: false, signIn, signOut };
+    return { status, email, error: auth.error?.message ?? null, isMock: false, signIn, signUp, signOut };
   }, [auth, config]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
