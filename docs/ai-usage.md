@@ -51,3 +51,4 @@
 | 2026-11-26 | M1 | Kiro (Claude) | M1-06 Browse, Live Trending and Settings pages, region store, live mock trending, and headless-browser checks |
 | 2026-11-26 | M1 | Kiro (Claude) | M1-07 player resume via `GET /progress`, and a headless-browser check against a fake API |
 | 2026-11-26 | M1 | Kiro (Claude) | M1-08 playback event emitter (batching, flushes, retries, keepalive), and a headless-browser check whose events were validated with `shared.validate` |
+| 2026-11-26 | M1 | Kiro (Claude) | test_web.py: read the synthesized config.json the same way on CDK 2.275 and 2.278 (bare vs quoted deploy-time markers) |

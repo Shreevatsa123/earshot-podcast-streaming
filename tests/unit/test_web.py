@@ -106,11 +106,38 @@ def test_deploys_app_and_config_then_invalidates(template: Template) -> None:
     assert "DistributionId" in props
 
 
+def _placeholder(value: object) -> str:
+    """Stand-in text for a CloudFormation value, e.g. ``{"Ref": "AuthUserPool..."}`` ->
+    ``<Ref:AuthUserPool...>``. Plain strings stay as they are."""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict) and "Ref" in value:
+        return f"<Ref:{value['Ref']}>"
+    if isinstance(value, dict) and "Fn::GetAtt" in value:
+        return "<GetAtt:" + ".".join(value["Fn::GetAtt"]) + ">"
+    if isinstance(value, dict) and "Fn::Join" in value:
+        sep, parts = value["Fn::Join"]
+        return sep.join(_placeholder(part) for part in parts)
+    raise AssertionError(f"unexpected CloudFormation value {value!r}")
+
+
+def render_deployed_file(text: str, markers: dict) -> str:
+    """Fill in the ``<<marker:...>>`` placeholders the way the deployment does.
+
+    CDK versions differ in where the JSON quotes go: 2.278 writes ``"<<marker:0>>"``
+    with the marker's value unquoted; 2.275 writes a bare ``<<marker:0>>`` and puts the
+    quotes into the value. Both render to the same deployed config.json.
+    """
+    for marker, value in markers.items():
+        text = text.replace(marker, _placeholder(value))
+    return text
+
+
 def test_config_json_has_every_field_with_the_stage_values(
     monkeypatch: pytest.MonkeyPatch, built_app: Path, tmp_path: Path
 ) -> None:
-    """Synthesizes to disk and reads the generated config.json. CloudFormation values are
-    placeholders in the file, filled in at deploy time from ``SourceMarkers``."""
+    """Synthesizes to disk, fills in the deploy-time values like the deployment would, and
+    checks the resulting config.json. Works with any CDK version (see render_deployed_file)."""
     monkeypatch.setattr(web_module, "WEB_DIST_DIR", built_app)
     app = cdk.App(outdir=str(tmp_path / "cdk.out"))
     cfg = StageConfig(stage=STAGE, account=ACCOUNT)
@@ -118,22 +145,22 @@ def test_config_json_has_every_field_with_the_stage_values(
         app, cfg.stack_name("base"), cfg=cfg, env=cdk.Environment(account=ACCOUNT, region=cfg.region)
     )
     app.synth()
-    files = list((tmp_path / "cdk.out").glob("asset.*/config.json"))
-    generated = [json.loads(f.read_text()) for f in files if "apiUrl" in f.read_text()]
-    assert len(generated) == 1, "expected exactly one generated config.json"
-    config = generated[0]
+    files = [f for f in (tmp_path / "cdk.out").glob("asset.*/config.json") if "apiUrl" in f.read_text()]
+    assert len(files) == 1, "expected exactly one generated config.json"
+
+    markers: dict = {}
+    for source_markers in deployment(Template.from_stack(stack))["SourceMarkers"]:
+        markers.update(source_markers)
+    config = json.loads(render_deployed_file(files[0].read_text(), markers))
 
     assert set(config) == {"apiUrl", "region", "userPoolId", "webClientId", "cognitoDomain", "stage"}
     assert config["region"] == "us-east-1"
     assert config["stage"] == STAGE
-    assert config["cognitoDomain"].startswith("https://")
+    assert config["apiUrl"].startswith("<GetAtt:ApiHttpApi") and config["apiUrl"].endswith(".ApiEndpoint>")
+    assert config["userPoolId"].startswith("<Ref:AuthUserPool")
+    assert config["webClientId"].startswith("<Ref:AuthUserPoolWebClient")
+    assert config["cognitoDomain"].startswith("https://<Ref:AuthUserPoolDomain")
     assert config["cognitoDomain"].endswith(".auth.us-east-1.amazoncognito.com")
-    for field in ("apiUrl", "userPoolId", "webClientId"):
-        assert config[field].startswith("<<marker:"), f"{field} should be filled in at deploy time"
-
-    markers = json.dumps(deployment(Template.from_stack(stack))["SourceMarkers"])
-    for ref in ("ApiEndpoint", "UserPool", "WebClient", "Domain"):
-        assert ref in markers, f"{ref} missing from the deploy-time values"
 
 
 def test_the_local_config_json_is_left_out_of_the_upload(
