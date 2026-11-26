@@ -11,6 +11,7 @@ Earshot is a podcast streaming web app built on AWS serverless services. Users l
 | `AGENTS.md` | Rules for AI agents working in this repo (`CLAUDE.md` and `.kiro/steering/` point to it) |
 | `docs/BRD.md` | Business requirements: scope, constraints, requirements, acceptance |
 | `docs/topic-summary.md` | The topic summary submitted to the instructor (historical record) |
+| `docs/results.md` | Measured results for the success criteria S1–S10 (filled by `make acceptance STAGE=prod`) |
 | `docs/ai-usage.md` | AI tool citations for the final slides |
 
 **Getting started:**
@@ -43,7 +44,9 @@ make pipeline-up   STAGE=<you>  # SQS triggers + EC2 simulator: cost money while
 make pipeline-down STAGE=<you>  # ALWAYS run this when you're done
 ```
 
-Add `ALERT_EMAIL=you@example.com` to `deploy-base` to get alert emails (confirm the link AWS sends you). Run `make help` for every command.
+Add `ALERT_EMAIL=you@example.com` to `deploy-base` to get alert emails (confirm the link AWS sends you). Use the same address on every deploy: leaving it out removes the subscriptions. Run `make help` for every command.
+
+**Checks:** `make pipeline-down` ends with `make cost-check` (anything still billing by the hour). `make acceptance STAGE=<you> ONLY=S3` runs one success-criterion check from `tests/acceptance/`; only `prod` runs write to `docs/results.md`.
 
 **Deploying to prod (the shared account):** follow the rules in `CONTEXT.md` §5. Use a clean, up-to-date `main`, post in the group chat first, and start the command with the shared account's profile, e.g. `AWS_PROFILE=earshot-prod make deploy-base STAGE=prod`.
 

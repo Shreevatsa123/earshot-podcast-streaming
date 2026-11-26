@@ -134,6 +134,7 @@ earshot/
 │       ├── common.py           ← python_function(), log_group(), removal policy, tags
 │       ├── stacks/base_stack.py      ← persistent stack (composes constructs)
 │       ├── stacks/pipeline_stack.py  ← ephemeral stack (composes constructs)
+│       ├── stacks/service_check_stack.py  ← throwaway M6-03 check (`make service-check` only)
 │       └── constructs/         ← one file per owner (see table)
 ├── services/                   ← ALL Lambda code; deployed as one asset dir
 │   ├── shared/                 ← names.py (single source for §9 names), http.py, log.py (EMF metrics), validate.py, clock.py
@@ -144,11 +145,23 @@ earshot/
 │   └── recs_writer/handler.py
 ├── athena/                     ← recs.sql, popular.sql, reconcile_trending.sql, count_events.sql
 ├── simulator/                  ← python -m simulator ...
-├── web/                        ← React app
-├── scripts/                    ← seed_catalog.py, set_flag.py, pipeline_up.sh, pipeline_down.sh, ...
-├── tests/unit/  tests/acceptance/  tests/load/
+├── web/                        ← React app (Vite + TS); `make deploy-base` builds it
+├── scripts/
+│   ├── catalog/                ← fetch_catalog.py, check_featured.py, seed_catalog.py (`make seed`) (M2)
+│   ├── set_flag.py             ← recs feature flags (M2)
+│   ├── create_sim_bot.py       ← sim-bot Cognito user + SSM password (M1)
+│   ├── account_check.py        ← Lambda/EC2 limits, `make account-check` (M6)
+│   └── cost_check.py           ← hourly-billed leftovers, `make cost-check` (M6)
+├── tests/
+│   ├── unit/                   ← pytest; CI runs these (`make test`)
+│   ├── acceptance/             ← S1–S10 checks, one `s<N>_*.py` per criterion; `make acceptance` (M6 + owners)
+│   └── load/                   ← Locust `/home` test for S6, run from the simulator EC2 instance (M6)
+├── .github/
+│   ├── pull_request_template.md
+│   └── workflows/              ← ci.yml (lint, test, synth), contract-status.yml (all-member approval to change the contract status)
 └── docs/
     ├── BRD.md                  ← business requirements
+    ├── topic-summary.md        ← topic summary sent to the instructor (historical)
     ├── results.md              ← measured S1–S10 results
     └── ai-usage.md             ← AI tool citations for the slides
 ```
