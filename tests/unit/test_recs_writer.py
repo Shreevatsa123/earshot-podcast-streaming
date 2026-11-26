@@ -1,13 +1,16 @@
-"""M5-04: the recs writer (CONTEXT §8.1, §10): parsing Athena's CSVs into RECS and POPULAR items."""
+"""M5-04: the recs writer (CONTEXT §8.1, §10): Athena's CSVs -> RECS and POPULAR items."""
 
 from __future__ import annotations
 
 import csv
 import io
+import json
+from decimal import Decimal
 from typing import Any
 
 import pytest
 
+from recs_writer import handler
 from recs_writer.handler import (
     POPULAR_COLUMNS,
     RECS_COLUMNS,
@@ -181,3 +184,129 @@ def test_popular_item_shape():
         "generated_at": 5,
         "run_id": "run-1",
     }
+
+
+# ---- main: S3 in, DynamoDB out (moto) -----------------------------------------------------
+
+LAKE = "earshot-test-lake"
+NOW = 1_794_614_400_000
+
+
+def plain(value: Any) -> Any:
+    """DynamoDB returns numbers as Decimal; compare them as ints."""
+    if isinstance(value, Decimal):
+        return int(value)
+    if isinstance(value, list):
+        return [plain(v) for v in value]
+    if isinstance(value, dict):
+        return {k: plain(v) for k, v in value.items()}
+    return value
+
+
+@pytest.fixture
+def aws(ddb_table, monkeypatch):
+    """The shared moto table (conftest) plus a lake bucket, the function's env, and a fixed clock."""
+    import boto3
+
+    s3 = boto3.client("s3", region_name="us-east-1")
+    s3.create_bucket(Bucket=LAKE)
+    monkeypatch.setenv("TABLE_NAME", ddb_table.name)
+    monkeypatch.setenv("LAKE_BUCKET", LAKE)
+    monkeypatch.setattr(handler.clock, "now_ms", lambda: NOW)
+    return s3, ddb_table
+
+
+def run(s3: Any, recs_text: str, popular_text: str, run_id: str = "run-1") -> dict[str, Any]:
+    """Put both results where Athena would and invoke the writer like the state machine will."""
+    recs_key, popular_key = f"recs-runs/{run_id}/recs.csv", f"recs-runs/{run_id}/popular.csv"
+    s3.put_object(Bucket=LAKE, Key=recs_key, Body=recs_text.encode("utf-8"))
+    s3.put_object(Bucket=LAKE, Key=popular_key, Body=popular_text.encode("utf-8"))
+    event = {"run_id": run_id, "recs_csv": f"s3://{LAKE}/{recs_key}", "popular_csv": f"s3://{LAKE}/{popular_key}"}
+    return handler.main(event, None)
+
+
+def get(table: Any, pk: str, sk: str) -> dict[str, Any] | None:
+    item = table.get_item(Key={"PK": pk, "SK": sk}).get("Item")
+    return plain(item) if item else None
+
+
+def test_main_writes_recs_and_popular(aws, capsys):
+    s3, table = aws
+    result = run(
+        s3,
+        recs_csv(rec("u1", 1, "s1", 1, "x1", 3), rec("u1", 2, "s2", 1, "x2", 1), rec("u2", 1, "t1", 1, "y1", 0)),
+        popular_csv(("show-a", "a", 9), ("show-b", "b", 4)),
+    )
+    assert result == {"run_id": "run-1", "users_written": 2, "popular_count": 2}
+    u1 = get(table, "USER#u1", "RECS")
+    assert [r["seed_episode_id"] for r in u1["rows"]] == ["s1", "s2"]
+    assert (u1["generated_at"], u1["run_id"]) == (NOW, "run-1")
+    assert get(table, "USER#u2", "RECS")["rows"][0]["items"] == [{"show_id": "show-y1", "episode_id": "y1", "score": 0}]
+    assert get(table, "POPULAR", "GLOBAL") == {
+        "PK": "POPULAR",
+        "SK": "GLOBAL",
+        "items": [{"show_id": "show-a", "episode_id": "a", "plays": 9}, {"show_id": "show-b", "episode_id": "b", "plays": 4}],
+        "generated_at": NOW,
+        "run_id": "run-1",
+    }
+    logged = [json.loads(line) for line in capsys.readouterr().out.splitlines() if line.startswith("{")]
+    metric = next(doc for doc in logged if "_aws" in doc)
+    assert metric["RecsUsersWritten"] == 2
+    assert metric["_aws"]["CloudWatchMetrics"][0]["Metrics"] == [{"Name": "RecsUsersWritten", "Unit": "Count"}]
+
+
+def test_main_replaces_a_users_item_whole_and_keeps_users_who_dropped_out(aws):
+    s3, table = aws
+    table.put_item(Item={"PK": "USER#u1", "SK": "RECS", "rows": [], "run_id": "old", "leftover": "x"})
+    table.put_item(Item={"PK": "USER#gone", "SK": "RECS", "rows": [], "run_id": "old"})
+    run(s3, recs_csv(rec("u1", 1, "s1", 1, "x1")), popular_csv())
+    u1 = get(table, "USER#u1", "RECS")
+    assert u1["run_id"] == "run-1" and "leftover" not in u1
+    assert get(table, "USER#gone", "RECS")["run_id"] == "old"  # decision: no cleanup scan
+
+
+def test_main_writes_many_users_through_batches(aws):
+    """More than 25 users, so the batch writer has to split the writes."""
+    s3, table = aws
+    rows = [rec(f"sim-{n:06d}", 1, "s1", 1, "x1") for n in range(60)]
+    assert run(s3, recs_csv(*rows), popular_csv())["users_written"] == 60
+    assert table.scan(Select="COUNT")["Count"] == 61  # 60 RECS + POPULAR
+
+
+def test_main_writes_an_empty_popular_item(aws):
+    s3, table = aws
+    assert run(s3, recs_csv(), popular_csv()) == {"run_id": "run-1", "users_written": 0, "popular_count": 0}
+    assert get(table, "POPULAR", "GLOBAL")["items"] == []
+
+
+def test_main_writes_nothing_when_a_result_is_malformed(aws):
+    s3, table = aws
+    table.put_item(Item={"PK": "POPULAR", "SK": "GLOBAL", "items": [], "run_id": "yesterday"})
+    good_recs = recs_csv(rec("u1", 1, "s1", 1, "x1"))
+    bad_popular = popular_csv(("show-a", "a", "lots"))
+    with pytest.raises(ResultError):
+        run(s3, good_recs, bad_popular)
+    assert get(table, "USER#u1", "RECS") is None  # recs parsed fine, but nothing was written
+    assert get(table, "POPULAR", "GLOBAL")["run_id"] == "yesterday"
+
+
+@pytest.mark.parametrize(
+    "event",
+    [
+        {"run_id": "", "recs_csv": f"s3://{LAKE}/recs-runs/r/a.csv", "popular_csv": f"s3://{LAKE}/recs-runs/r/b.csv"},
+        {"run_id": "r", "recs_csv": f"s3://{LAKE}/events/dt=2026-11-14/x.json.gz", "popular_csv": f"s3://{LAKE}/recs-runs/r/b.csv"},
+        {"run_id": "r", "recs_csv": "s3://someone-elses-bucket/recs-runs/r/a.csv", "popular_csv": f"s3://{LAKE}/recs-runs/r/b.csv"},
+        {"run_id": "r", "recs_csv": f"s3://{LAKE}/recs-runs/", "popular_csv": f"s3://{LAKE}/recs-runs/r/b.csv"},
+        {"run_id": "r", "popular_csv": f"s3://{LAKE}/recs-runs/r/b.csv"},
+    ],
+    ids=["no-run-id", "outside-recs-runs", "other-bucket", "prefix-only", "missing-path"],
+)
+def test_main_refuses_bad_input_before_touching_aws(event, monkeypatch):
+    def no_aws(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("no AWS call expected")
+
+    monkeypatch.setattr(handler.boto3, "client", no_aws)
+    monkeypatch.setattr(handler.boto3, "resource", no_aws)
+    monkeypatch.setenv("LAKE_BUCKET", LAKE)
+    with pytest.raises(ValueError):
+        handler.main(event, None)

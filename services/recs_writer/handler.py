@@ -12,9 +12,10 @@ Input (from the recs state machine, M5-05): ``{"run_id", "recs_csv", "popular_cs
 - Both files are parsed completely before anything is written: a malformed row means a
   query bug, so the run fails and yesterday's items stay instead of being half-replaced.
 - A user who no longer qualifies keeps their last RECS item (no cleanup scan; §15).
+- Paths outside ``s3://<lake>/recs-runs/`` are refused, so the writer can't be pointed at
+  arbitrary files.
 
-STATUS: parsing and item building are implemented; the S3 read and DynamoDB writes in
-``main`` are next.
+Emits ``RecsUsersWritten`` (§10) and one JSON log line per run.
 """
 
 from __future__ import annotations
@@ -22,6 +23,11 @@ from __future__ import annotations
 import csv
 import io
 from typing import Any
+
+import boto3
+
+from shared import clock, log
+from shared.names import RECS_RUNS_PREFIX, required_env
 
 #: recs.sql's output columns, in order (see its header).
 RECS_COLUMNS = (
@@ -148,6 +154,48 @@ def popular_item(items: list[dict[str, Any]], *, run_id: str, generated_at: int)
     return {"PK": "POPULAR", "SK": "GLOBAL", "items": items, "generated_at": generated_at, "run_id": run_id}
 
 
+def result_key(uri: Any, bucket: str) -> str:
+    """The S3 key of an Athena result, which must be ``s3://<lake>/recs-runs/...``."""
+    prefix = f"s3://{bucket}/{RECS_RUNS_PREFIX}"
+    if not isinstance(uri, str) or not uri.startswith(prefix) or len(uri) == len(prefix):
+        raise ValueError(f"expected an Athena result under {prefix}, got {uri!r}")
+    return uri.removeprefix(f"s3://{bucket}/")
+
+
+def read_result(s3: Any, bucket: str, key: str) -> str:
+    return s3.get_object(Bucket=bucket, Key=key)["Body"].read().decode("utf-8")
+
+
 def main(event: dict[str, Any], context: Any) -> dict[str, Any]:
-    """Must return ``{"run_id", "users_written", "popular_count"}`` (CONTEXT §10)."""
-    raise NotImplementedError("M5-04: the S3 read and DynamoDB writes come next")
+    """Write one run's RECS and POPULAR items; returns ``{run_id, users_written, popular_count}`` (§10)."""
+    run_id = event.get("run_id")
+    if not isinstance(run_id, str) or not run_id:
+        raise ValueError(f"run_id must be a non-empty string, got {run_id!r}")
+    bucket = required_env("LAKE_BUCKET")
+    recs_key = result_key(event.get("recs_csv"), bucket)
+    popular_key = result_key(event.get("popular_csv"), bucket)
+
+    # Read and parse both results before writing anything (a bad file fails the run).
+    s3 = boto3.client("s3")
+    recs = parse_recs(read_result(s3, bucket, recs_key))
+    popular = parse_popular(read_result(s3, bucket, popular_key))
+
+    generated_at = clock.now_ms()
+    table = boto3.resource("dynamodb").Table(required_env("TABLE_NAME"))
+    # batch_writer sends 25 items per call and resends any DynamoDB returns as unprocessed.
+    with table.batch_writer() as batch:
+        for user_id, rows in recs.items():
+            batch.put_item(Item=recs_item(user_id, rows, run_id=run_id, generated_at=generated_at))
+    table.put_item(Item=popular_item(popular, run_id=run_id, generated_at=generated_at))
+
+    log.emit_metrics({"RecsUsersWritten": len(recs)})
+    log.log(
+        "recs writer run complete",
+        run_id=run_id,
+        users_written=len(recs),
+        recs_rows=sum(len(rows) for rows in recs.values()),
+        popular_count=len(popular),
+        recs_csv=recs_key,
+        popular_csv=popular_key,
+    )
+    return {"run_id": run_id, "users_written": len(recs), "popular_count": len(popular)}
