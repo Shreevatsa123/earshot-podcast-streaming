@@ -59,7 +59,7 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 
 | ID | Task | Owner | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
-| G0-1 | Review `CONTEXT.md` §6–§9; all 6 approve; set contract status to `FROZEN` | All | — | done | PR_LINK | All 6 approved on GitHub (the **contract status approvals** check stays red until then); `CONTEXT.md` status is `FROZEN`. The first attempt (#46) was merged too early and undone in #47 |
+| G0-1 | Review `CONTEXT.md` §6–§9; all 6 approve; set contract status to `FROZEN` | All | — | done | [#51](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/51) | All 6 approved on GitHub (the **contract status approvals** check stays red until then); `CONTEXT.md` status is `FROZEN`. The first attempt (#46) was merged too early and undone in #47 |
 
 ---
 
