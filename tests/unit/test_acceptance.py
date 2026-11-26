@@ -7,7 +7,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
-from acceptance import harness
+from acceptance import harness, s10_cost
 from acceptance.context import SIM_BOT_USERNAME, ApiClient
 from acceptance.harness import Measurement, Status
 
@@ -201,3 +201,48 @@ def test_api_client_can_skip_auth(api_server):
 def test_sim_bot_username_matches_the_simulator():
     simulator_cli = (harness.REPO_ROOT / "simulator" / "__main__.py").read_text(encoding="utf-8")
     assert f'SIM_USERNAME = "{SIM_BOT_USERNAME}"' in simulator_cli
+
+
+# ---- S10 (the check M6 owns) -----------------------------------------------------------
+
+
+class _Paginator:
+    def __init__(self, pages):
+        self._pages = pages
+
+    def paginate(self, **_kwargs):
+        return iter(self._pages)
+
+
+class _Client:
+    def __init__(self, pages=None):
+        self._pages = pages or {}
+
+    def get_paginator(self, operation):
+        return _Paginator(self._pages.get(operation, [{}]))
+
+    def describe_addresses(self):
+        return {"Addresses": []}
+
+
+class _Ctx:
+    """Stands in for Context: only ``client(service)`` is used by S10."""
+
+    def __init__(self, instances=()):
+        reservations = [{"Instances": [{"InstanceId": i, "State": {"Name": "running"}} for i in instances]}]
+        self._ec2 = _Client({"describe_instances": [{"Reservations": reservations}]})
+
+    def client(self, service):
+        return self._ec2 if service == "ec2" else _Client()
+
+
+def test_s10_passes_when_nothing_hourly_is_left():
+    measurement = s10_cost.run(_Ctx())
+    assert measurement.passed
+    assert measurement.measured.startswith("0 hourly-billed resources running")
+
+
+def test_s10_fails_when_the_simulator_is_still_up():
+    measurement = s10_cost.run(_Ctx(instances=["i-sim"]))
+    assert not measurement.passed
+    assert "EC2 instance i-sim" in measurement.measured

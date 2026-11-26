@@ -18,5 +18,5 @@ ignore = ["UP017"]  # datetime.timezone.utc is fine
 [tool.ruff.lint.isort]
 known-first-party = [
     "shared", "earshot_infra", "api", "ingest", "processor", "archiver", "recs_writer", "account_check",
-    "acceptance",
+    "acceptance", "cost_check",
 ]

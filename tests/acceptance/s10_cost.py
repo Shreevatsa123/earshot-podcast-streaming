@@ -2,9 +2,8 @@
 
 Owner: M6 · Tracker: M6-08 · Spec: CONTEXT §14 S10.
 
-To automate (M6-08): after ``make pipeline-down``, nothing hourly-billed is left running in
-the account, using the same checks as the cost check script. Run it only while the pipeline
-is down.
+Automated here: after ``make pipeline-down``, nothing hourly-billed is left running in the
+account (the same checks as ``make cost-check``). Run it only while the pipeline is down.
 
 Recorded by hand in docs/results.md ("S10 notes"): the semester cost from the Billing
 console, how long ``make pipeline-up`` takes, and a full deploy from scratch.
@@ -12,9 +11,11 @@ console, how long ``make pipeline-up`` takes, and a full deploy from scratch.
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from typing import TYPE_CHECKING
 
 from acceptance.harness import Measurement
+from cost_check import Clients, run_checks
 
 if TYPE_CHECKING:
     from acceptance.context import Context
@@ -29,4 +30,16 @@ TARGET = (
 
 
 def run(ctx: Context) -> Measurement:
-    raise NotImplementedError("M6: needs the cost check script (M6-08)")
+    findings, failures = run_checks(Clients.from_factory(ctx.client))
+    if failures:
+        raise RuntimeError("the cost check couldn't run fully: " + "; ".join(failures))
+    hourly = [f for f in findings if f.hourly]
+    measured = f"{len(hourly)} hourly-billed resources running"
+    if hourly:
+        measured += " (" + ", ".join(f"{f.kind} {f.name}" for f in hourly) + ")"
+    measured += "; cost and deploy times: see S10 notes"
+    return Measurement(
+        passed=not hourly,
+        measured=measured,
+        details={"hourly": [asdict(f) for f in hourly], "leftovers": [asdict(f) for f in findings if not f.hourly]},
+    )

@@ -141,6 +141,18 @@ def test_resources_are_tagged():
     )
 
 
+def test_pipeline_never_leaves_resources_behind():
+    """`make pipeline-down` must leave nothing hourly-billed (CONTEXT §5, S10)."""
+    for stage in ("dev", "prod"):
+        _, pipeline = synth(stage)
+        assert not retained_resources(pipeline), RETAIN_HELP
+
+
+def test_dev_base_leaves_nothing_behind():
+    base, _ = synth("dev")
+    assert not retained_resources(base), RETAIN_HELP
+
+
 def test_python_function_helper_defaults():
     app = cdk.App()
     cfg = StageConfig(stage="dev", account=ACCOUNT)

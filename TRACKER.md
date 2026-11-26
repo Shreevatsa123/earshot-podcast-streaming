@@ -21,7 +21,7 @@
 | M3 | Ingest & Simulator | Bhargav | sbhargav0620-ui | `bhargav` | ☑ | ☑ | ☑ |
 | M4 | Real-time Processing | | | | ☐ | ☐ | ☐ |
 | M5 | Data Lake & Recommendations | | | | ☐ | ☐ | ☐ |
-| M6 | Platform, Monitoring & Testing | | | | ☐ | ☐ | ☐ |
+| M6 | Platform, Monitoring & Testing | Shreevatsa | Shreevatsa123 | | ☑ | ☑ | ☐ |
 | — | **Shared `prod` account** (owned by M6) | | | `prod` | ☑ | — | ☑ |
 
 This repo is **public**: don't put AWS account IDs, emails or keys in it.
@@ -134,7 +134,7 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 | M6-05 | Monitoring construct: dashboard + ≤ 10 alarms + ops topic (§10) | M6-01 | todo | | |
 | M6-06 | Locust `/home` test (50 users, 5 min, run from EC2) | M2-06, M3-07 | todo | | |
 | M6-07 | Acceptance harness `tests/acceptance/` (S1–S10 runner) + `docs/results.md` template | M6-01 | review | [#38](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/38) | `make acceptance STAGE=<s> [ONLY=S1,S10]` runs every `tests/acceptance/s<N>_*.py`, prints a summary, saves raw JSON in `tests/acceptance/output/`, and for `prod` only rewrites the matching `docs/results.md` rows. Each S module is a stub for its owner to fill in (CONTEXT §15); S10 waits on the cost check (M6-08). Unit tests use fake checks and a local HTTP server, no AWS |
-| M6-08 | Cost check script: lists any hourly-billed resources left running; weekly cost note in Notes | M6-01 | todo | | |
+| M6-08 | Cost check script: lists any hourly-billed resources left running; weekly cost note in Notes | M6-01 | review | PR_LINK | `make cost-check` (read-only, whole account, us-east-1): running EC2 instances, Elastic IPs, NAT gateways and load balancers count as hourly; leftover pipeline/servicecheck stacks, stopped instances and loose EBS volumes are listed too. Exit 0 = clean, 1 = hourly running, 2 = couldn't check. `make pipeline-down` runs it afterwards. No Kinesis/Firehose checks (blocked on the Free plan). S10 (`tests/acceptance/s10_cost.py`) uses the same checks. Two synth tests make sure the pipeline stack and dev base retain nothing. Weekly cost notes go here once prod runs |
 | M6-09 | Status update document (done / hurdles / remaining, from this tracker) | G2 | todo | | Course deliverable |
 | M6-10 | Slides skeleton; each member fills in their component; sources + `docs/ai-usage.md` cited | G4 | todo | | Course deliverable |
 
