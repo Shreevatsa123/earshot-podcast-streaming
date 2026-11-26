@@ -59,7 +59,7 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 
 | ID | Task | Owner | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
-| G0-1 | Review `CONTEXT.md` §6–§9; all 6 approve; set contract status to `FROZEN` | All | — | done | [#46](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/46) | All 6 approved on the PR (merged only after the last approval); `CONTEXT.md` status is `FROZEN` |
+| G0-1 | Review `CONTEXT.md` §6–§9; all 6 approve; set contract status to `FROZEN` | All | — | todo | | #46 was merged before any approvals and is undone (status back to `DRAFT`). M2 OK'd in the group chat; the freeze is redone in a new PR once a CI check enforces all 6 approvals |
 
 ---
 
