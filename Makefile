@@ -18,11 +18,11 @@ BASE_STACK := earshot-$(STAGE)-base
 PIPELINE_STACK := earshot-$(STAGE)-pipeline
 CHECK_STACK := earshot-$(STAGE)-servicecheck
 
-# Lets scripts import shared.names and earshot_infra.config.
-export PYTHONPATH := $(CURDIR)/services:$(CURDIR)/infra
+# Lets scripts import shared.names and earshot_infra.config, and `python -m acceptance` find tests/acceptance.
+export PYTHONPATH := $(CURDIR)/services:$(CURDIR)/infra:$(CURDIR)/tests
 
 .PHONY: help install lint test synth diff bootstrap deploy-base seed pipeline-up pipeline-down destroy-all \
-	account-check service-check service-check-down check-stage
+	account-check service-check service-check-down acceptance check-stage
 
 help: ## Show this list
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-19s %s\n", $$1, $$2}'
@@ -80,6 +80,9 @@ service-check: check-stage ## M6-03: deploy 1 tiny resource per service, show li
 
 service-check-down: check-stage ## Destroy a leftover service-check stack
 	cd infra && $(CDK) destroy $(CHECK_STACK) $(CDK_CONTEXT) -c servicecheck=true --force
+
+acceptance: check-stage ## M6-07: run the S1-S10 checks on a deployed stage (ONLY=S1,S10); prod updates docs/results.md
+	$(PY) -m acceptance --stage $(STAGE) $(if $(ONLY),--only $(ONLY))
 
 check-stage:
 	@if [ -z "$(STAGE)" ]; then echo "Set STAGE to your stage name, e.g.: make $(firstword $(MAKECMDGOALS)) STAGE=priya"; exit 1; fi
