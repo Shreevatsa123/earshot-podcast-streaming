@@ -1,4 +1,4 @@
-import { Info, Pause, Play, TrendingUp } from "lucide-react";
+import { Info, Pause, Play, Sparkles, TrendingUp } from "lucide-react";
 import type { EpisodeCard } from "../types/contracts";
 import { formatMinutesLabel, formatPlays } from "../lib/format";
 import { genreName } from "../lib/genres";
@@ -8,6 +8,8 @@ import { useUi } from "./UiContext";
 
 interface Props {
   featured: EpisodeCard[];
+  /** True when `featured` comes from today's trending row; otherwise it's a fallback pick. */
+  fromTrending: boolean;
   activeIndex: number;
   onSelectIndex: (index: number) => void;
 }
@@ -16,7 +18,7 @@ interface Props {
  * Full-width spotlight at the top of Home: the selected episode's cover as a backdrop
  * under purple scrims, with a switcher for the other featured episodes.
  */
-export function HeroBillboard({ featured, activeIndex, onSelectIndex }: Props) {
+export function HeroBillboard({ featured, fromTrending, activeIndex, onSelectIndex }: Props) {
   const { play, current, isPlaying } = usePlayer();
   const { openShow } = useUi();
   const episode = featured[activeIndex] ?? featured[0];
@@ -58,11 +60,20 @@ export function HeroBillboard({ featured, activeIndex, onSelectIndex }: Props) {
         <div className="max-w-2xl">
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs sm:text-sm font-medium text-[#D8B4FE] mb-4">
             <span className="inline-flex items-center gap-1.5 font-semibold text-[#E9D5FF]">
-              <TrendingUp className="w-4 h-4" aria-hidden="true" />#{rank} on Earshot today
+              {fromTrending ? (
+                <>
+                  <TrendingUp className="w-4 h-4" aria-hidden="true" />#{rank} on Earshot today
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" aria-hidden="true" />
+                  Featured on Earshot
+                </>
+              )}
             </span>
             <span aria-hidden="true" className="text-purple-300/40">·</span>
             <span>{genreName(episode.genre)}</span>
-            {episode.plays !== undefined && (
+            {fromTrending && episode.plays !== undefined && (
               <>
                 <span aria-hidden="true" className="text-purple-300/40">·</span>
                 <span className="tabular-nums">{formatPlays(episode.plays)} plays</span>
