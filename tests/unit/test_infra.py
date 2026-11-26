@@ -111,7 +111,9 @@ def test_stacks_are_decoupled():
 
 def test_alert_email_subscribes_to_both_topics():
     base, _ = synth("dev", alert_email="m6@example.com")
-    base.resource_count_is("AWS::SNS::Subscription", 2)
+    # Count only email subscriptions: the hot and cold queues also subscribe to the events topic.
+    emails = base.find_resources("AWS::SNS::Subscription", {"Properties": {"Protocol": "email"}})
+    assert len(emails) == 2
     base.has_resource_properties(
         "AWS::SNS::Subscription", {"Protocol": "email", "Endpoint": "m6@example.com"}
     )
