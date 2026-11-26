@@ -18,11 +18,12 @@ BASE_STACK := earshot-$(STAGE)-base
 PIPELINE_STACK := earshot-$(STAGE)-pipeline
 CHECK_STACK := earshot-$(STAGE)-servicecheck
 
-# Lets scripts import shared.names and earshot_infra.config, and `python -m acceptance` find tests/acceptance.
-export PYTHONPATH := $(CURDIR)/services:$(CURDIR)/infra:$(CURDIR)/tests
+# Lets scripts import shared.names and earshot_infra.config, and `python -m acceptance` find
+# tests/acceptance and scripts/cost_check.py (S10).
+export PYTHONPATH := $(CURDIR)/services:$(CURDIR)/infra:$(CURDIR)/scripts:$(CURDIR)/tests
 
 .PHONY: help install lint test synth diff bootstrap deploy-base seed pipeline-up pipeline-down destroy-all \
-	account-check service-check service-check-down acceptance check-stage
+	cost-check account-check service-check service-check-down acceptance check-stage
 
 help: ## Show this list
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-19s %s\n", $$1, $$2}'
@@ -57,12 +58,16 @@ pipeline-up: check-stage ## Deploy the hourly-billed pipeline stack
 	cd infra && $(CDK) deploy $(PIPELINE_STACK) $(CDK_CONTEXT) --require-approval never
 	@echo ">>> The pipeline is UP and bills by the hour. When you're done: make pipeline-down STAGE=$(STAGE)"
 
-pipeline-down: check-stage ## Destroy the pipeline stack (after every session)
+pipeline-down: check-stage ## Destroy the pipeline stack (after every session), then run the cost check
 	cd infra && $(CDK) destroy $(PIPELINE_STACK) $(CDK_CONTEXT) --force
+	-@$(PY) scripts/cost_check.py
 
 destroy-all: check-stage ## Destroy both stacks (dev stages only, never prod)
 	@if [ "$(STAGE)" = "prod" ]; then echo "Refusing to destroy prod."; exit 1; fi
 	cd infra && $(CDK) destroy --all $(CDK_CONTEXT) --force
+
+cost-check: ## M6-08: list anything in the AWS account that bills by the hour (read-only)
+	$(PY) scripts/cost_check.py
 
 account-check: ## Show the Lambda and EC2 limits that can block Earshot (read-only)
 	$(PY) scripts/account_check.py
