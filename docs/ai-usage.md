@@ -34,3 +34,4 @@
 | 2026-11-24 | M2 | Claude Code (Claude Opus 5.5) | M2-04 API construct (HTTP API, JWT authorizer, routes, CORS, throttling), unit tests, stage checks |
 | 2026-11-24 | M2 | Claude Code (Claude Opus 5.5) | M2-05 API read routes (router, hydration, identity rules), moto tests, stage checks |
 | 2026-11-24 | M2 | Claude Code (Claude Opus 5.5) | M2-06 `/home` (rows, fallback chain, short-timeout recs client, flags cache, HomeFallback metric), tests, S8 check in `sankha` |
+| 2026-11-07 | M1 | Kiro (Claude) | M1-01 web scaffold: Vite + React + TS app, runtime `config.json` loader, `VITE_USE_MOCKS` mode against `contracts/samples`, purple theme adapted from the team's Nocturne design, Home page, show dialog, search and player dock |
