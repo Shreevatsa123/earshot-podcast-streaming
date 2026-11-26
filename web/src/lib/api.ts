@@ -32,6 +32,11 @@ export function setUnauthorizedHandler(fn: (() => void) | null): void {
   unauthorizedHandler = fn;
 }
 
+/** The current access token, or null when nobody is logged in. Used by the event sender. */
+export function currentAccessToken(): string | null {
+  return tokenProvider();
+}
+
 // The API Gateway authorizer answers {"message":"Unauthorized"}; our Lambda answers
 // {"error":{"code","message"}} (§7.1). Fallback text when there's neither.
 const STATUS_TEXT: Record<number, string> = {
