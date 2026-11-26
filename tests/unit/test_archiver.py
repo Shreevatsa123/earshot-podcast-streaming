@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from botocore.exceptions import ClientError
+
 from archiver import handler
 from archiver.handler import (
     decode_message,
@@ -18,8 +20,6 @@ from archiver.handler import (
     object_key,
     plan_batch,
 )
-from botocore.exceptions import ClientError
-
 from shared.validate import EVENT_FIELDS
 
 ROOT = Path(__file__).resolve().parents[2]
