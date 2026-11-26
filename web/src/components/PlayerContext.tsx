@@ -1,16 +1,40 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { EpisodeCard } from "../types/contracts";
+import { getProgress } from "../lib/api";
+import { formatDuration } from "../lib/format";
+import { startFrom, startFromProgress } from "../lib/resume";
 
 /**
  * Now-playing state shared by every page, backed by one HTML5 <audio> element.
  *
- * Audio streams straight from the publisher's `audio_url` (CONTEXT §1). When a card
- * carries `position_sec` (Continue Listening), playback starts there.
- * Still to come: resume via GET /progress/{id} for every episode (M1-07) and the
- * playback event emitter (M1-08).
+ * Audio streams straight from the publisher's `audio_url` (CONTEXT §1).
+ * Resume (M1-07): playback starts at once (at the card's `position_sec`, if any), then
+ * GET /progress/{id} says where this user really stopped, from any device, and the
+ * player jumps there. Positions near the end or marked completed start over.
+ * Still to come: the playback event emitter (M1-08).
  */
 export const PLAYBACK_RATES = [0.8, 1, 1.25, 1.5, 2] as const;
+
+/** How long to wait for GET /progress before giving up and keeping the first guess. */
+const PROGRESS_TIMEOUT_MS = 2500;
+const NOTICE_MS = 4000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error("timeout")), ms);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        window.clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
 
 interface PlayerState {
   current: EpisodeCard | null;
@@ -21,6 +45,7 @@ interface PlayerState {
   isMuted: boolean;
   playbackRate: number;
   error: string | null;
+  notice: string | null;
   /** Play `episode`; if it's already loaded, toggle play/pause instead. */
   play: (episode: EpisodeCard) => void;
   togglePlayPause: () => void;
@@ -45,6 +70,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [isMuted, setIsMuted] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  /** Short message for the player bar, e.g. "Resumed at 9:38". Clears itself. */
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(null), NOTICE_MS);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
   const startPlayback = useCallback(() => {
     const audio = audioRef.current;
@@ -53,6 +86,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       // Autoplay blocked or the publisher URL failed; the error handler covers the latter.
       setIsPlaying(false);
     });
+  }, []);
+
+  // Each play() of a new episode gets an id, so a late /progress answer for an episode
+  // the user already left is ignored.
+  const loadIdRef = useRef(0);
+  const userSeekedRef = useRef(false);
+
+  /** Jump to `target` now if the audio is loaded, or as soon as its metadata arrives. */
+  const applyStart = useCallback((target: number) => {
+    startAtRef.current = target;
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.readyState >= HTMLMediaElement.HAVE_METADATA) {
+      if (Math.abs(audio.currentTime - target) > 1) audio.currentTime = target;
+    } else {
+      setCurrentTime(target);
+    }
   }, []);
 
   const play = useCallback(
@@ -64,18 +114,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         else audio.pause();
         return;
       }
-      const start = episode.position_sec ?? 0;
-      // Start from the beginning if the saved position is in the last 15 seconds.
-      startAtRef.current = start >= episode.duration_sec - 15 ? 0 : start;
+      const loadId = ++loadIdRef.current;
+      userSeekedRef.current = false;
+      // First guess: the position on the card (Continue Listening rows carry one).
+      startAtRef.current = startFrom(episode.position_sec ?? 0, episode.duration_sec);
       setCurrent(episode);
       setError(null);
+      setNotice(null);
       setCurrentTime(startAtRef.current);
       setMediaDuration(0);
       audio.src = episode.audio_url;
       audio.playbackRate = playbackRate;
+      // Start right away, inside the click: browsers may block play() after an await.
       startPlayback();
+
+      // Then ask the API where this user stopped (works across devices) and jump there.
+      withTimeout(getProgress(episode.episode_id), PROGRESS_TIMEOUT_MS)
+        .then((progress) => {
+          if (loadIdRef.current !== loadId || userSeekedRef.current) return;
+          const target = startFromProgress(progress, episode.duration_sec);
+          if (target === null) return; // nothing saved: keep the card's guess
+          applyStart(target);
+          if (target > 0) setNotice(`Resumed at ${formatDuration(target)}`);
+        })
+        .catch(() => {
+          // No answer in time or an API error: keep the card's guess, playback goes on.
+        });
     },
-    [current, playbackRate, startPlayback],
+    [current, playbackRate, startPlayback, applyStart],
   );
 
   const togglePlayPause = useCallback(() => {
@@ -92,6 +158,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const audio = audioRef.current;
       if (!audio || !current) return;
       const clamped = Math.max(0, Math.min(duration || timeSec, timeSec));
+      userSeekedRef.current = true;
       audio.currentTime = clamped;
       setCurrentTime(clamped);
     },
@@ -164,6 +231,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       isMuted,
       playbackRate,
       error,
+      notice,
       play,
       togglePlayPause,
       seek,
@@ -182,6 +250,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       isMuted,
       playbackRate,
       error,
+      notice,
       play,
       togglePlayPause,
       seek,

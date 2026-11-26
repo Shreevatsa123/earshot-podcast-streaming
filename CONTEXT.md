@@ -556,6 +556,7 @@ Add the newest entry at the top: `YYYY-MM-DD · M<#> · §<section> · what chan
 
 | Date | Who | Section | Change |
 |---|---|---|---|
+| 2026-11-26 | M1 | §6 | M1-07: the web player starts playback right away, then asks `GET /progress/{id}` and seeks to the saved position (S2's ±2 s). A position within 15 s of the end, or `completed`, starts over. If the API doesn't answer within 2.5 s, playback continues from the card's `position_sec` (or 0) |
 | 2026-11-26 | M1 | §6 | M1-06: the web app's listening region (§6 `region`) defaults to `us-east` and is picked on Settings; it's stored in `localStorage` (`earshot.region`), so it applies to every event the browser sends. Live Trending polls `GET /trending?limit=20` every 5 s and pauses while the tab is hidden |
 | 2026-11-25 | M1 | §9 | M1-05: the web app's redirect URI is the page's own origin with no trailing slash (the CloudFront URL or `http://localhost:5173`, matching the web client's callbacks). Tokens live in `localStorage` and renew silently; a 401 from the API signs the user out of the app. Log out also calls Cognito's `/logout` with `logout_uri` = the same origin |
 | 2026-11-25 | M1 | §9 | M1-04: `config.json`'s `cognitoDomain` is the managed login **base URL** (`https://<prefix>.auth.us-east-1.amazoncognito.com`), not only the prefix. Values that don't exist yet are empty strings. The web build's own `config.json` (local dev values from `web/public`) is never uploaded. Every deploy invalidates `/*`, so a new build and config show up right away |
