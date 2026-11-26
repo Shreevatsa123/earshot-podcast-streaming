@@ -137,6 +137,10 @@ export function PlayerDock() {
               </button>
               {player.error ? (
                 <p className="text-xs text-[#F0ABFC] truncate">{player.error}</p>
+              ) : player.notice ? (
+                <p className="text-xs font-medium text-[#D8B4FE] truncate" role="status">
+                  {player.notice}
+                </p>
               ) : (
                 <button
                   type="button"
