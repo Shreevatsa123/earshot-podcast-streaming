@@ -29,4 +29,9 @@
 | 2026-11-16 | M3 | Claude (Claude Opus 5.5) | M3-06: simulator `run` (Cognito auth, rate control, retries, run report) and unit tests |
 | 2026-11-16 | M3 | Claude (Claude Opus 5.5) | M3-08: simulator `buffer-storm` mode and unit test |
 | 2026-11-16 | M3 | Claude (Claude Opus 5.5) | M3-07: simulator EC2 construct |
+| 2026-11-24 | M1 | Kiro (Claude) | M1-02 Cognito auth construct (user pool, groups, web and sim clients, managed login domain and style, SSM params) and unit tests |
+| 2026-11-24 | M2 | Claude Code (Claude Opus 5.5) | M2-03 `seed_catalog.py` (catalog → DynamoDB items) and moto tests |
+| 2026-11-24 | M2 | Claude Code (Claude Opus 5.5) | M2-04 API construct (HTTP API, JWT authorizer, routes, CORS, throttling), unit tests, stage checks |
+| 2026-11-24 | M2 | Claude Code (Claude Opus 5.5) | M2-05 API read routes (router, hydration, identity rules), moto tests, stage checks |
+| 2026-11-24 | M2 | Claude Code (Claude Opus 5.5) | M2-06 `/home` (rows, fallback chain, short-timeout recs client, flags cache, HomeFallback metric), tests, S8 check in `sankha` |
 | 2026-11-07 | M1 | Kiro (Claude) | M1-01 web scaffold: Vite + React + TS app, runtime `config.json` loader, `VITE_USE_MOCKS` mode against `contracts/samples`, purple theme adapted from the team's Nocturne design, Home page, show dialog, search and player dock |
