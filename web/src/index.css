@@ -95,6 +95,104 @@
   opacity: 0.35;
 }
 
+/* Login page: slow drifting purple light behind the page. */
+@keyframes aurora-drift-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-8%, 6%, 0) scale(1.15);
+  }
+}
+@keyframes aurora-drift-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.1);
+  }
+  50% {
+    transform: translate3d(10%, -7%, 0) scale(0.95);
+  }
+}
+.aurora-a {
+  animation: aurora-drift-a 22s ease-in-out infinite;
+}
+.aurora-b {
+  animation: aurora-drift-b 28s ease-in-out infinite;
+}
+
+/* Login page: the cover collage drifts sideways and back (one way takes 20 s). */
+@keyframes collage-drift {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-12vw);
+  }
+}
+.collage-drift {
+  animation: collage-drift 20s ease-in-out infinite alternate;
+}
+
+/* Login page carousel: the playhead moving along the "resume" slide's timeline. */
+@keyframes playhead {
+  0% {
+    width: 18%;
+  }
+  100% {
+    width: 72%;
+  }
+}
+.playhead-fill {
+  animation: playhead 4.5s ease-in-out infinite alternate;
+}
+
+/* Twinkling dots on the "recommendations" slide. */
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+.twinkle {
+  animation: twinkle 2.6s ease-in-out infinite;
+}
+
+/* Trending slide: bars gently rise and settle, like play counts ticking up. */
+@keyframes bar-breathe {
+  0%,
+  100% {
+    transform: scaleY(0.9);
+    filter: brightness(0.9);
+  }
+  50% {
+    transform: scaleY(1);
+    filter: brightness(1.15);
+  }
+}
+.bar-breathe {
+  transform-origin: bottom;
+  animation: bar-breathe 2.8s ease-in-out infinite;
+}
+
+/* The line under the selected carousel tab fills up until the next slide (5 s). */
+@keyframes carousel-progress {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+.carousel-progress {
+  animation: carousel-progress 5s linear forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

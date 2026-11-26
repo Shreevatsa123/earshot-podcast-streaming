@@ -556,6 +556,7 @@ Add the newest entry at the top: `YYYY-MM-DD · M<#> · §<section> · what chan
 
 | Date | Who | Section | Change |
 |---|---|---|---|
+| 2026-11-26 | M1 | §9 | Login page: separate **Log in** and **Sign up** buttons. Sign up runs the same code + PKCE flow on Cognito's `/signup` page (it takes the same parameters as `/oauth2/authorize` and returns the same code), so nothing changes for the API or the web client |
 | 2026-11-26 | M1 | §6 | M1-08: the web player also retries a batch after a network error, 429 or 5xx (≤ 3 times, backoff 0.5/1/2 s + jitter), not only `THROTTLED` rejects: each event has its own `event_id` and the backend never double-counts one, so a resend is safe. Other rejects and 400/401/403 are dropped and logged. The resume jump (M1-07) is reported as a normal `seek`. A new `session_id` starts each time an episode is loaded; switching episodes or closing the player first reports a `pause` for the old one |
 | 2026-11-26 | M1 | §6 | M1-07: the web player starts playback right away, then asks `GET /progress/{id}` and seeks to the saved position (S2's ±2 s). A position within 15 s of the end, or `completed`, starts over. If the API doesn't answer within 2.5 s, playback continues from the card's `position_sec` (or 0) |
 | 2026-11-26 | M1 | §6 | M1-06: the web app's listening region (§6 `region`) defaults to `us-east` and is picked on Settings; it's stored in `localStorage` (`earshot.region`), so it applies to every event the browser sends. Live Trending polls `GET /trending?limit=20` every 5 s and pauses while the tab is hidden |
