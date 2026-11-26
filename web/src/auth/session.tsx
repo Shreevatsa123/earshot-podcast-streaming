@@ -6,7 +6,7 @@
 //   token goes on every API call (the API's JWT authorizer expects access tokens).
 // - Mock (VITE_USE_MOCKS=true): always signed in as a demo listener, no network.
 
-import { createContext, useContext, useEffect, useMemo } from "react";
+import { createContext, useContext, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { AuthProvider, useAuth } from "react-oidc-context";
 import { WebStorageStateStore } from "oidc-client-ts";
@@ -105,21 +105,23 @@ function MockSession({ children }: { children: ReactNode }) {
 
 function CognitoSession({ config, children }: { config: RuntimeConfig; children: ReactNode }) {
   const auth = useAuth();
-  const accessToken = auth.user?.access_token ?? null;
 
-  // Keep the API client's token in sync with the current user.
-  useEffect(() => {
-    setTokenProvider(() => accessToken);
-  }, [accessToken]);
-
-  // A 401 from the API means the token is gone or no longer valid: forget it, so the
-  // app shows the login screen instead of a broken page.
-  useEffect(() => {
+  // The API client reads the token through these refs. They're updated during render, not
+  // in an effect: React runs a child's effects before its parent's, so pages (children)
+  // start their first API calls before an effect here would have set the token.
+  const tokenRef = useRef<string | null>(null);
+  tokenRef.current = auth.user?.access_token ?? null;
+  const authRef = useRef(auth);
+  authRef.current = auth;
+  useState(() => {
+    setTokenProvider(() => tokenRef.current);
+    // A 401 for a request that carried a token means that token is no longer valid:
+    // forget it, so the app shows the login screen instead of a broken page.
     setUnauthorizedHandler(() => {
-      void auth.removeUser();
+      void authRef.current.removeUser();
     });
-    return () => setUnauthorizedHandler(null);
-  }, [auth]);
+    return null;
+  });
 
   const value = useMemo<Session>(() => {
     const signIn = () => {

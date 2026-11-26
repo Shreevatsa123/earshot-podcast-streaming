@@ -88,7 +88,9 @@ async function request<T>(path: string): Promise<T> {
     } catch {
       // non-JSON error body; keep the defaults
     }
-    if (res.status === 401) unauthorizedHandler?.();
+    // Only a rejected token means "log in again"; a request sent without one says nothing
+    // about the login.
+    if (res.status === 401 && token) unauthorizedHandler?.();
     throw new ApiRequestError(code, message, res.status);
   }
   return (await res.json()) as T;
