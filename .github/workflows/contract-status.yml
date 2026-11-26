@@ -1,0 +1,71 @@
+# Contract status guard (owner: M6 · tracker G0-1, CONTEXT §12).
+#
+# A PR that changes the "Contract status" line in CONTEXT.md (DRAFT <-> FROZEN) needs an
+# approval from every team member except the PR's author (who can't approve their own PR).
+# Every other PR passes straight away. Branch protection on main makes this check required,
+# so such a PR can't be merged until everyone has approved.
+#
+# It re-runs whenever someone submits or dismisses a review, so the check turns green as
+# soon as the last approval comes in.
+name: Contract status
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: contract-status-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  approvals:
+    name: contract status approvals
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      PR: ${{ github.event.pull_request.number }}
+      AUTHOR: ${{ github.event.pull_request.user.login }}
+      # GitHub usernames of the 6 members (TRACKER.md "Team"): M1-M6.
+      MEMBERS: tanishqa14 SankhaS sbhargav0620-ui josh-gonsalves BadhriSrikanth Shreevatsa123
+    steps:
+      - name: Check approvals if the contract status changes
+        run: |
+          set -euo pipefail
+          patch=$(gh api "repos/$REPO/pulls/$PR/files?per_page=100" --paginate \
+            --jq '.[] | select(.filename == "CONTEXT.md") | .patch // ""')
+          if ! grep -qE '^[-+]> \*\*Contract status:\*\*' <<<"$patch"; then
+            echo "This PR doesn't change the contract status line. Nothing to check."
+            exit 0
+          fi
+          echo "This PR changes the contract status, so every member except the author ($AUTHOR) must approve."
+
+          # Latest approve / request-changes / dismissed review per person.
+          latest=$(gh api "repos/$REPO/pulls/$PR/reviews?per_page=100" --jq '
+            [.[] | select(.state == "APPROVED" or .state == "CHANGES_REQUESTED" or .state == "DISMISSED")]
+            | group_by(.user.login) | map({key: .[0].user.login, value: (last | .state)}) | from_entries')
+
+          missing=()
+          for member in $MEMBERS; do
+            [ "$member" = "$AUTHOR" ] && continue
+            state=$(jq -r --arg m "$member" '.[$m] // "none"' <<<"$latest")
+            if [ "$state" = "APPROVED" ]; then
+              echo "  approved: $member"
+            else
+              echo "  missing:  $member ($state)"
+              missing+=("$member")
+            fi
+          done
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Still waiting for approval from: ${missing[*]}"
+            exit 1
+          fi
+          echo "Everyone has approved."

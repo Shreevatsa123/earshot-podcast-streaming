@@ -42,3 +42,4 @@
 | 2026-11-25 | M6 | Kiro (Claude) | M6-08 cost check script, its unit tests, the S10 acceptance check and the two retain-guard synth tests |
 | 2026-11-25 | M6 | Kiro (Claude) | M6-05 monitoring constructs (dashboard, prod alarms in base and pipeline) and their synth tests |
 | 2026-11-26 | M2 | Claude Code (Claude Opus 5.5) | M2-09 S8 acceptance check (`s8_degradation.py`) and its unit tests |
+| 2026-11-25 | M6 | Kiro (Claude) | Contract status approval check (`.github/workflows/contract-status.yml`) and undoing the early G0-1 freeze |
