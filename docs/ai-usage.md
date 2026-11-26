@@ -44,3 +44,4 @@
 | 2026-11-26 | M2 | Claude Code (Claude Opus 5.5) | M2-09 S8 acceptance check (`s8_degradation.py`) and its unit tests |
 | 2026-11-26 | M2 | Claude Code (Claude Opus 5.5) | Full recheck of the M2 work (tests, live routes in `sankha` and `prod`); §7.1 note on API Gateway's own error bodies |
 | 2026-11-25 | M6 | Kiro (Claude) | Contract status approval check (`.github/workflows/contract-status.yml`) and undoing the early G0-1 freeze |
+| 2026-11-26 | M6 | Kiro (Claude) | M6-06 Locust `/home` load test, its helpers and runbook, the S6 acceptance check and their unit tests |
