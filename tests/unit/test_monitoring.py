@@ -96,9 +96,22 @@ def test_hot_queue_age_alarm_is_in_the_pipeline_and_references_base_by_arn():
         "AWS::CloudWatch::Alarm",
         {
             "AlarmName": "earshot-prod-hot-queue-age",
-            "MetricName": "ApproximateAgeOfOldestMessage",
-            "Namespace": "AWS/SQS",
-            "Dimensions": [{"Name": "QueueName", "Value": "earshot-prod-hot"}],
+            # A labelled metric is written in the "Metrics" form, not as MetricName/Namespace.
+            "Metrics": [
+                Match.object_like(
+                    {
+                        "MetricStat": Match.object_like(
+                            {
+                                "Metric": {
+                                    "MetricName": "ApproximateAgeOfOldestMessage",
+                                    "Namespace": "AWS/SQS",
+                                    "Dimensions": [{"Name": "QueueName", "Value": "earshot-prod-hot"}],
+                                }
+                            }
+                        )
+                    }
+                )
+            ],
             "Threshold": 60,
             "AlarmActions": [f"arn:aws:sns:us-east-1:{ACCOUNT}:earshot-prod-ops-alerts"],
         },
@@ -110,8 +123,11 @@ def test_prod_stacks_stay_decoupled():
     app = cdk.App()
     cfg = StageConfig(stage="prod", account=ACCOUNT)
     env = cdk.Environment(account=ACCOUNT, region=cfg.region)
-    base = Template.from_stack(BaseStack(app, cfg.stack_name("base"), cfg=cfg, env=env))
-    pipeline = Template.from_stack(PipelineStack(app, cfg.stack_name("pipeline"), cfg=cfg, env=env))
+    # Build both stacks before synthesizing either (CDK forbids changes after synth).
+    base_stack = BaseStack(app, cfg.stack_name("base"), cfg=cfg, env=env)
+    pipeline_stack = PipelineStack(app, cfg.stack_name("pipeline"), cfg=cfg, env=env)
+    base = Template.from_stack(base_stack)
+    pipeline = Template.from_stack(pipeline_stack)
     assert "Fn::ImportValue" not in json.dumps(pipeline.to_json())
     assert all("Export" not in o for o in base.to_json().get("Outputs", {}).values())
     assert alarm_names(base) == BASE_ALARMS
