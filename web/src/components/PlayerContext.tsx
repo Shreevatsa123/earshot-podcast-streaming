@@ -4,6 +4,8 @@ import type { EpisodeCard } from "../types/contracts";
 import { getProgress } from "../lib/api";
 import { formatDuration } from "../lib/format";
 import { startFrom, startFromProgress } from "../lib/resume";
+import { events, HEARTBEAT_MS, makeEvent, newTrack } from "../lib/events";
+import type { EventType, Track } from "../lib/events";
 
 /**
  * Now-playing state shared by every page, backed by one HTML5 <audio> element.
@@ -12,7 +14,8 @@ import { startFrom, startFromProgress } from "../lib/resume";
  * Resume (M1-07): playback starts at once (at the card's `position_sec`, if any), then
  * GET /progress/{id} says where this user really stopped, from any device, and the
  * player jumps there. Positions near the end or marked completed start over.
- * Still to come: the playback event emitter (M1-08).
+ * Events (M1-08): play, pause, seek, buffer, a heartbeat every 15 s and complete go to
+ * POST /events through lib/events.ts, which batches and retries them (§6).
  */
 export const PLAYBACK_RATES = [0.8, 1, 1.25, 1.5, 2] as const;
 
@@ -79,6 +82,55 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(timer);
   }, [notice]);
 
+  // ---- playback events (M1-08) ------------------------------------------------
+  /** The episode being listened to and its session id (§6); null when nothing's loaded. */
+  const trackRef = useRef<Track | null>(null);
+  /** Set when we've already reported a pause the browser is about to fire again. */
+  const suppressPauseRef = useRef(false);
+  const heartbeatRef = useRef<number | undefined>(undefined);
+
+  const emit = useCallback((type: EventType, positionSec?: number) => {
+    const track = trackRef.current;
+    if (!track) return;
+    events.emit(makeEvent(track, type, positionSec ?? audioRef.current?.currentTime ?? 0));
+  }, []);
+
+  const stopHeartbeat = useCallback(() => {
+    window.clearInterval(heartbeatRef.current);
+    heartbeatRef.current = undefined;
+  }, []);
+
+  const startHeartbeat = useCallback(() => {
+    stopHeartbeat();
+    heartbeatRef.current = window.setInterval(() => {
+      if (audioRef.current && !audioRef.current.paused) emit("heartbeat");
+    }, HEARTBEAT_MS);
+  }, [emit, stopHeartbeat]);
+
+  /** Report a pause for the current episode now, and skip the browser's own pause event. */
+  const reportPauseNow = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio || !trackRef.current || audio.paused) return;
+    emit("pause");
+    suppressPauseRef.current = true;
+  }, [emit]);
+
+  // Send whatever is queued when the page is hidden or closed (keepalive, §6).
+  useEffect(() => {
+    const flushNow = () => void events.flush({ keepalive: true });
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flushNow();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flushNow);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flushNow);
+    };
+  }, []);
+
+  useEffect(() => stopHeartbeat, [stopHeartbeat]);
+
   const startPlayback = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -116,6 +168,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
       const loadId = ++loadIdRef.current;
       userSeekedRef.current = false;
+      reportPauseNow(); // the episode we're leaving
+      trackRef.current = newTrack(episode); // new listening session (§6 session_id)
       // First guess: the position on the card (Continue Listening rows carry one).
       startAtRef.current = startFrom(episode.position_sec ?? 0, episode.duration_sec);
       setCurrent(episode);
@@ -141,7 +195,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           // No answer in time or an API error: keep the card's guess, playback goes on.
         });
     },
-    [current, playbackRate, startPlayback, applyStart],
+    [current, playbackRate, startPlayback, applyStart, reportPauseNow],
   );
 
   const togglePlayPause = useCallback(() => {
@@ -186,6 +240,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const close = useCallback(() => {
+    reportPauseNow();
+    trackRef.current = null;
+    stopHeartbeat();
     const audio = audioRef.current;
     if (audio) {
       audio.pause();
@@ -196,7 +253,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setIsPlaying(false);
     setCurrentTime(0);
     setError(null);
-  }, []);
+  }, [reportPauseNow, stopHeartbeat]);
 
   // Keep the element in sync with the volume, mute and speed controls.
   useEffect(() => {
@@ -274,9 +331,29 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           if (startAtRef.current > 0) audio.currentTime = startAtRef.current;
         }}
         onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
-        onEnded={() => setIsPlaying(false)}
+        onPlay={() => {
+          setIsPlaying(true);
+          suppressPauseRef.current = false;
+          emit("play");
+          startHeartbeat();
+        }}
+        onPause={(e) => {
+          setIsPlaying(false);
+          stopHeartbeat();
+          if (suppressPauseRef.current) {
+            suppressPauseRef.current = false; // already reported
+            return;
+          }
+          if (!e.currentTarget.ended) emit("pause"); // at the end, `complete` covers it
+        }}
+        onSeeked={() => emit("seek")}
+        onWaiting={() => emit("buffer")}
+        onEnded={(e) => {
+          setIsPlaying(false);
+          stopHeartbeat();
+          const audio = e.currentTarget;
+          emit("complete", Number.isFinite(audio.duration) ? audio.duration : audio.currentTime);
+        }}
         onError={(e) => {
           if (!e.currentTarget.getAttribute("src")) return;
           setIsPlaying(false);

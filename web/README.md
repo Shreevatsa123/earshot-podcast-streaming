@@ -31,6 +31,7 @@ gradient, rank numbers and equalizer animation live in `src/index.css`. Icons co
 | Settings page | `pages/Settings.tsx`, `lib/region.ts` | listening region for events (§6), account |
 | Search | `components/SearchOverlay.tsx` | `GET /shows` for all 8 genres, filtered in the browser (the API has no search route) |
 | Player dock + expanded view | `components/PlayerDock.tsx`, `components/PlayerContext.tsx` | HTML5 `<audio>` on the episode's `audio_url` |
+| Playback events | `lib/events.ts`, hooks in `components/PlayerContext.tsx` | `POST /events` (§6 rules: batches of 25, 5 s flush, retries) |
 
 ## Login (M1-05)
 

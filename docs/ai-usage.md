@@ -50,3 +50,4 @@
 | 2026-11-25 | M1 | Kiro (Claude) | M1-05 web login (react-oidc-context session layer, login screen, account menu, 401 handling) and a headless-browser check against the managed login page |
 | 2026-11-26 | M1 | Kiro (Claude) | M1-06 Browse, Live Trending and Settings pages, region store, live mock trending, and headless-browser checks |
 | 2026-11-26 | M1 | Kiro (Claude) | M1-07 player resume via `GET /progress`, and a headless-browser check against a fake API |
+| 2026-11-26 | M1 | Kiro (Claude) | M1-08 playback event emitter (batching, flushes, retries, keepalive), and a headless-browser check whose events were validated with `shared.validate` |
