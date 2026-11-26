@@ -47,3 +47,4 @@
 | 2026-11-25 | M1 | Kiro (Claude) | Own-stage setup for `tanishqa` (budget, admin user, CLI, bootstrap, deploy) and the M1-02/M1-03 stage checks |
 | 2026-11-25 | M1 | Kiro (Claude) | M1-04 web construct (bucket, CloudFront with OAC, SPA routing, config.json deployment) and unit tests |
 | 2026-11-26 | M6 | Kiro (Claude) | M6-06 Locust `/home` load test, its helpers and runbook, the S6 acceptance check and their unit tests |
+| 2026-11-25 | M1 | Kiro (Claude) | M1-05 web login (react-oidc-context session layer, login screen, account menu, 401 handling) and a headless-browser check against the managed login page |

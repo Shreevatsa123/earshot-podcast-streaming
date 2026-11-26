@@ -5,8 +5,8 @@
 // can be built before M2's API exists. M1-09 switches the app to the real API.
 //
 // Auth: the real API needs `Authorization: Bearer <access token>` on every route
-// except GET /health (§7.1). The auth layer (M1-05) injects the token getter; until
-// then it returns null and mock mode is used.
+// except GET /health (§7.1). The session layer (src/auth/session.tsx, M1-05) injects the
+// token getter and a handler for 401 responses.
 
 import { getConfig, USE_MOCKS } from "./config";
 import type {
@@ -19,12 +19,27 @@ import type {
   TrendingResponse,
 } from "../types/contracts";
 
-/** Access-token provider, set by the auth layer (M1-05). */
+/** Access-token provider, set by the session layer (M1-05). */
 let tokenProvider: () => string | null = () => null;
+/** Called when the API answers 401, i.e. the token is missing or no longer valid. */
+let unauthorizedHandler: (() => void) | null = null;
 
 export function setTokenProvider(fn: () => string | null): void {
   tokenProvider = fn;
 }
+
+export function setUnauthorizedHandler(fn: (() => void) | null): void {
+  unauthorizedHandler = fn;
+}
+
+// The API Gateway authorizer answers {"message":"Unauthorized"}; our Lambda answers
+// {"error":{"code","message"}} (§7.1). Fallback text when there's neither.
+const STATUS_TEXT: Record<number, string> = {
+  401: "Please log in again.",
+  403: "You don't have access to this.",
+  404: "Not found.",
+  429: "Too many requests. Try again in a moment.",
+};
 
 export class ApiRequestError extends Error {
   constructor(
@@ -55,19 +70,27 @@ async function request<T>(path: string): Promise<T> {
   const headers: Record<string, string> = {};
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${apiUrl}${path}`, { headers });
+  let res: Response;
+  try {
+    res = await fetch(`${apiUrl}${path}`, { headers });
+  } catch {
+    throw new ApiRequestError("NETWORK", "Couldn't reach the Earshot API. Check your connection.", 0);
+  }
   if (!res.ok) {
-    let code = "INTERNAL";
-    let message = res.statusText;
+    let code = res.status === 401 ? "UNAUTHORIZED" : "INTERNAL";
+    let message = STATUS_TEXT[res.status] ?? `The server answered ${res.status}.`;
     try {
       const body = await res.json();
       if (body?.error) {
         code = body.error.code ?? code;
-        message = body.error.message ?? message;
+        message = body.error.message || message;
       }
     } catch {
-      // non-JSON error body; keep defaults
+      // non-JSON error body; keep the defaults
     }
+    // Only a rejected token means "log in again"; a request sent without one says nothing
+    // about the login.
+    if (res.status === 401 && token) unauthorizedHandler?.();
     throw new ApiRequestError(code, message, res.status);
   }
   return (await res.json()) as T;

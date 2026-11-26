@@ -19,14 +19,21 @@ export function Home() {
   const [heroIndex, setHeroIndex] = useState(0);
   const [genre, setGenre] = useState<GenreId | null>(null);
 
-  const featured = useMemo(() => (home.status === "ready" ? pickFeatured(home.data) : []), [home]);
+  const hero = useMemo(() => (home.status === "ready" ? pickFeatured(home.data) : null), [home]);
 
   if (home.status === "loading") return <PageMessage text="Loading your home page…" />;
   if (home.status === "error") return <PageMessage text={`Couldn't load your home page. ${home.error}`} />;
 
   return (
     <>
-      <HeroBillboard featured={featured} activeIndex={heroIndex} onSelectIndex={setHeroIndex} />
+      {hero && (
+        <HeroBillboard
+          featured={hero.items}
+          fromTrending={hero.fromTrending}
+          activeIndex={heroIndex}
+          onSelectIndex={setHeroIndex}
+        />
+      )}
 
       <GenreFilter selected={genre} onSelect={setGenre} />
 
@@ -51,11 +58,14 @@ export function Home() {
   );
 }
 
-/** Hero spotlight: the top trending episodes, or the first items if trending is empty. */
-function pickFeatured(home: HomeResponse): EpisodeCard[] {
+/**
+ * Hero spotlight: today's top trending episodes. A new stage or quiet day has no trending
+ * row, so the hero falls back to the first row with items (Popular / Featured).
+ */
+function pickFeatured(home: HomeResponse): { items: EpisodeCard[]; fromTrending: boolean } | null {
   const trending = home.rows.find((r) => r.source === "trending" && r.items.length > 0);
   const source = trending ?? home.rows.find((r) => r.items.length > 0);
-  return source ? source.items.slice(0, FEATURED_COUNT) : [];
+  return source ? { items: source.items.slice(0, FEATURED_COUNT), fromTrending: Boolean(trending) } : null;
 }
 
 function HomeShelf({ row }: { row: HomeRow }) {
