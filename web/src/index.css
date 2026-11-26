@@ -121,6 +121,19 @@
   animation: aurora-drift-b 28s ease-in-out infinite;
 }
 
+/* Login page: the cover collage drifts slowly sideways and back. */
+@keyframes collage-drift {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-12vw);
+  }
+}
+.collage-drift {
+  animation: collage-drift 60s linear infinite alternate;
+}
+
 /* Login page carousel: the playhead moving along the "resume" slide's timeline. */
 @keyframes playhead {
   0% {

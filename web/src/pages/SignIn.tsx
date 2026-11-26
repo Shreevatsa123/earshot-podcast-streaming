@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useSession } from "../auth/session";
+import { LOGIN_COVERS } from "../lib/loginCovers";
 
 // Earshot's three features. The card shows one at a time as a carousel; the layout follows
 // the team's Nocturne login design. The visuals are illustrations, not live data: nothing
@@ -175,15 +176,49 @@ export function SignIn() {
   );
 }
 
-/** Layered purple light with two glows drifting slowly behind the page. */
+/**
+ * A tilted wall of real podcast covers drifting slowly sideways, under a deep purple tint and
+ * the two drifting glows. Covers that fail to load leave a plain purple tile.
+ */
 function Backdrop() {
+  const rows = 6;
+  const perRow = 10;
   return (
-    <div aria-hidden="true" className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-[#0B0418] via-[#14072B] to-[#07020F]" />
-      <div className="aurora-a absolute -top-[20%] right-[-10%] w-[70vw] h-[70vw] rounded-full bg-[radial-gradient(circle,rgba(168,85,247,0.30),transparent_65%)]" />
-      <div className="aurora-b absolute bottom-[-30%] left-[-15%] w-[75vw] h-[75vw] rounded-full bg-[radial-gradient(circle,rgba(126,34,206,0.28),transparent_65%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_40%_35%_at_40%_10%,rgba(76,29,149,0.25),transparent_70%)]" />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#07020F] via-transparent to-[#07020F]/60" />
+    <div aria-hidden="true" className="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-[#07020F]">
+      <div className="absolute left-1/2 top-1/2 w-[160vw] -translate-x-1/2 -translate-y-1/2 -rotate-[12deg]">
+        <div className="collage-drift flex flex-col gap-3">
+          {Array.from({ length: rows }, (_, r) => (
+            <div key={r} className="flex gap-3" style={{ marginLeft: r % 2 ? "-4vw" : "0" }}>
+              {Array.from({ length: perRow }, (_, c) => (
+                <CoverTile key={c} src={LOGIN_COVERS[(r * perRow + c * 3 + r) % LOGIN_COVERS.length]} />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="absolute inset-0 bg-[#2E0B5C]/45 mix-blend-multiply" />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#07020F]/94 via-[#14072B]/80 to-[#0B0418]/70" />
+      <div className="aurora-a absolute -top-[20%] right-[-10%] w-[70vw] h-[70vw] rounded-full bg-[radial-gradient(circle,rgba(168,85,247,0.28),transparent_65%)]" />
+      <div className="aurora-b absolute bottom-[-30%] left-[-15%] w-[75vw] h-[75vw] rounded-full bg-[radial-gradient(circle,rgba(126,34,206,0.26),transparent_65%)]" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#07020F] via-transparent to-[#07020F]/70" />
+    </div>
+  );
+}
+
+function CoverTile({ src }: { src: string }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <div className="shrink-0 w-[13vw] aspect-square rounded-lg overflow-hidden bg-gradient-to-br from-violet-900 to-[#0B0514]">
+      {!failed && (
+        <img
+          src={src}
+          alt=""
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onError={() => setFailed(true)}
+          className="w-full h-full object-cover"
+        />
+      )}
     </div>
   );
 }
