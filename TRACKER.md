@@ -19,7 +19,7 @@
 | M1 | Frontend & Auth | Tanishqa | tanishqa14 | `tanishqa` | ☑ | ☑ | ☑ |
 | M2 | API & Catalog | Sankha | SankhaS | `sankha` | ☑ | ☑ | ☑ |
 | M3 | Ingest & Simulator | Bhargav | sbhargav0620-ui | `bhargav` | ☑ | ☑ | ☑ |
-| M4 | Real-time Processing | | | | ☐ | ☐ | ☐ |
+| M4 | Real-time Processing | Josh Gonsalves | josh-gonsalves | `josh` | ☑ | ☑ | ☑ |
 | M5 | Data Lake & Recommendations | Badhri | BadhriSrikanth | `badhri` | ☑ | ☑ | ☑ |
 | M6 | Platform, Monitoring & Testing | Shreevatsa | Shreevatsa123 | | ☑ | ☑ | ☐ |
 | — | **Shared `prod` account** (owned by M6) | | | `prod` | ☑ | — | ☑ |
@@ -106,12 +106,12 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 ### M4: Real-time Processing
 | ID | Task | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|
-| M4-01 | Processor: decode SQS messages (`body` = `{"events":[...]}`, §10) + progress conditional update (§8.2) + unit tests for out-of-order input | M3-04 *(soft)* | doing | [#15](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/15) | Merged and tests pass; own-stage deployment verification remains |
-| M4-02 | Trending via `TransactWriteItems` + dedupe marker; duplicate unit tests | M4-01 | doing | [#16](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/16) | Merged; own-stage verification remains |
-| M4-03 | QoE minute windows + exactly one SNS publish at threshold | M4-01 | review | [#17](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/17) | QoE dedupe, per-region/minute counts and threshold SNS alert; local tests pass |
-| M4-04 | Partial batch failures, skip malformed records, metrics (§10) | M4-01 | todo | | |
-| M4-05 | Processing construct: hot queue + DLQ + subscription + function (base); SQS trigger with §10 settings (pipeline) | M6-01, M3-03 | todo | | Changed Nov 8: SQS trigger instead of Kinesis |
-| M4-06 | S3 replay test `tests/acceptance/s3_replay.py` (expected results computed offline) | M3-05, M4-02 | todo | | |
+| M4-01 | Processor: decode SQS messages (`body` = `{"events":[...]}`, §10) + progress conditional update (§8.2) + unit tests for out-of-order input | M3-04 *(soft)* | done | [#15](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/15) | Verified in stage `josh` (Nov 27): S3 replay confirmed correct latest progress across shuffled events |
+| M4-02 | Trending via `TransactWriteItems` + dedupe marker; duplicate unit tests | M4-01 | done | [#16](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/16) | Verified in stage `josh` (Nov 27): 10,000-event replay with 10% duplicates produced exact distinct-play counts |
+| M4-03 | QoE minute windows + exactly one SNS publish at threshold | M4-01 | done | [#17](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/17) | Verified in stage `josh` (Nov 27): QoE window reached 30 and processor logged exactly one alert publish |
+| M4-04 | Partial batch failures, skip malformed records, metrics (§10) | M4-01 | done | | Unit tests cover transient message failures; live mapping reports batch item failures and malformed SQS body was skipped in stage `josh` (Nov 27) |
+| M4-05 | Processing construct: hot queue + DLQ + subscription + function (base); SQS trigger with §10 settings (pipeline) | M6-01, M3-03 | review | [#65](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/65) | Deployed and verified in stage `josh` (Nov 27): queue/DLQ, raw subscription, and enabled mapping match §10; pipeline destroyed and cost check clean |
+| M4-06 | S3 replay test `tests/acceptance/s3_replay.py` (expected results computed offline) | M3-05, M4-02 | review | [#65](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/65) | `make acceptance STAGE=josh ONLY=S3` passed Nov 27: 10,000 shuffled events, 10% duplicates, 0 wrong progress positions and 0 double-counted plays |
 
 ### M5: Data Lake & Recommendations
 | ID | Task | Depends on | Status | PR | Notes |

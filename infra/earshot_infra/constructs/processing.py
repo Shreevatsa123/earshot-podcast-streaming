@@ -1,17 +1,18 @@
-"""Stream processor: the hot queue, its DLQ and the Lambda (base), and its SQS trigger (pipeline).
+"""Stream processor: hot queue, DLQ and Lambda (base), plus its SQS trigger (pipeline).
 
 Owner: M4 · Tracker: M4-05 (construct), M4-01..M4-04 (code) · Spec: CONTEXT §8.2, §10
-
-STATUS: STUB. Both classes create nothing yet.
 """
 
 from __future__ import annotations
 
+from aws_cdk import Duration, RemovalPolicy
 from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_sns as sns
+from aws_cdk import aws_sns_subscriptions as subscriptions
 from aws_cdk import aws_sqs as sqs
 from constructs import Construct
 
+from earshot_infra.common import python_function
 from earshot_infra.config import StageConfig
 from earshot_infra.constructs.core import Core
 
@@ -51,7 +52,46 @@ class ProcessingBase(Construct):
         self.function: lambda_.IFunction | None = None
         self.queue: sqs.IQueue | None = None
         self.dlq: sqs.IQueue | None = None
-        # TODO(M4-05): implement per the docstring.
+
+        self.dlq = sqs.Queue(
+            self,
+            "Dlq",
+            queue_name=cfg.processor_dlq,
+            encryption=sqs.QueueEncryption.SQS_MANAGED,
+            retention_period=Duration.days(14),
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+        self.queue = sqs.Queue(
+            self,
+            "Queue",
+            queue_name=cfg.hot_queue,
+            encryption=sqs.QueueEncryption.SQS_MANAGED,
+            retention_period=Duration.days(14),
+            visibility_timeout=Duration.seconds(300),
+            dead_letter_queue=sqs.DeadLetterQueue(
+                queue=self.dlq,
+                max_receive_count=5,
+            ),
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+        if topic is not None:
+            topic.add_subscription(subscriptions.SqsSubscription(self.queue, raw_message_delivery=True))
+
+        self.function = python_function(
+            self,
+            "Function",
+            cfg=cfg,
+            name="processor",
+            handler="processor.handler.main",
+            environment={
+                "TABLE_NAME": cfg.table_name,
+                "QOE_TOPIC_ARN": core.qoe_topic.topic_arn,
+                "QOE_THRESHOLD": "30",
+            },
+        )
+        core.table.grant_read_write_data(self.function)
+        core.qoe_topic.grant_publish(self.function)
+        self.queue.grant_consume_messages(self.function)
 
 
 class ProcessingPipeline(Construct):
@@ -70,4 +110,18 @@ class ProcessingPipeline(Construct):
 
     def __init__(self, scope: Construct, construct_id: str, *, cfg: StageConfig) -> None:
         super().__init__(scope, construct_id)
-        # TODO(M4-05): implement per the docstring.
+        processor = lambda_.Function.from_function_arn(
+            self,
+            "Processor",
+            cfg.function_arn("processor"),
+        )
+        lambda_.EventSourceMapping(
+            self,
+            "HotQueueMapping",
+            target=processor,
+            event_source_arn=cfg.hot_queue_arn,
+            batch_size=100,
+            max_batching_window=Duration.seconds(1),
+            report_batch_item_failures=True,
+            max_concurrency=5,
+        )
