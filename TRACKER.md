@@ -110,8 +110,8 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 | M4-02 | Trending via `TransactWriteItems` + dedupe marker; duplicate unit tests | M4-01 | done | [#16](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/16) | Verified in stage `josh` (Nov 27): 10,000-event replay with 10% duplicates produced exact distinct-play counts |
 | M4-03 | QoE minute windows + exactly one SNS publish at threshold | M4-01 | done | [#17](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/17) | Verified in stage `josh` (Nov 27): QoE window reached 30 and processor logged exactly one alert publish |
 | M4-04 | Partial batch failures, skip malformed records, metrics (§10) | M4-01 | done | | Unit tests cover transient message failures; live mapping reports batch item failures and malformed SQS body was skipped in stage `josh` (Nov 27) |
-| M4-05 | Processing construct: hot queue + DLQ + subscription + function (base); SQS trigger with §10 settings (pipeline) | M6-01, M3-03 | review | [#65](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/65) | Deployed and verified in stage `josh` (Nov 27): queue/DLQ, raw subscription, and enabled mapping match §10; pipeline destroyed and cost check clean |
-| M4-06 | S3 replay test `tests/acceptance/s3_replay.py` (expected results computed offline) | M3-05, M4-02 | review | [#65](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/65) | `make acceptance STAGE=josh ONLY=S3` passed Nov 27: 10,000 shuffled events, 10% duplicates, 0 wrong progress positions and 0 double-counted plays |
+| M4-05 | Processing construct: hot queue + DLQ + subscription + function (base); SQS trigger with §10 settings (pipeline) | M6-01, M3-03 | done | [#65](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/65) | Merged Nov 27; deployed and verified in stage `josh`: queue/DLQ, raw subscription, and enabled mapping match §10; pipeline destroyed and cost check clean |
+| M4-06 | S3 replay test `tests/acceptance/s3_replay.py` (expected results computed offline) | M3-05, M4-02 | done | [#65](https://github.com/Shreevatsa123/earshot-podcast-streaming/pull/65) | Merged Nov 27; `make acceptance STAGE=josh ONLY=S3` passed: 10,000 shuffled events, 10% duplicates, 0 wrong progress positions and 0 double-counted plays |
 
 ### M5: Data Lake & Recommendations
 | ID | Task | Depends on | Status | PR | Notes |
@@ -170,7 +170,7 @@ This repo is **public**: don't put AWS account IDs, emails or keys in it.
 | # | Criterion | Target (CONTEXT §14) | Owner | Measured | Status |
 |---|---|---|---|---|---|
 | S1 | End-to-end flow | Sign up → resume | M1 | | todo |
-| S2 | Resume freshness / accuracy | < 5 s p95, ±2 s | M4 + M1 | | todo |
+| S2 | Resume freshness / accuracy | < 5 s p95, ±2 s | M4 + M1 | | doing |
 | S3 | Bad-input correctness | 0 wrong / 0 double | M4 | | todo |
 | S4 | Throughput, no loss | 500 ev/s × 10 min, 0 lost | M3 + M6 | | todo |
 | S5 | Hot vs cold agreement | ≤ 1 % | M5 | | todo |
