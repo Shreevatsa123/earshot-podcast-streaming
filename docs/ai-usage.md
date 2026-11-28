@@ -59,3 +59,4 @@
 | 2026-11-26 | M5 | Claude Code (Claude Opus 5.5) | Verifying M5-01 to M5-05 and M5-08 in stage `badhri` (deploy, check scripts, Athena queries, recs run, teardown and cost check) |
 | 2026-11-27 | M4 | Copilot SDK in VS Code | M4-05 hot-queue construct, S3 replay and S9 alert acceptance checks, and tests |
 | 2026-11-27 | M4 | Copilot SDK in VS Code | S2 API progress-freshness acceptance check and tests |
+| 2026-11-28 | M3 | Claude Code (Claude Opus 5.5) | M3-09 S4 throughput acceptance check (run report vs queues vs Athena) and its unit tests |
